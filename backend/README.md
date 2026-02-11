@@ -21,3 +21,9 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```powershell
 alembic upgrade head
 ```
+
+## Billing Flag Admin API
+
+- Set `ADMIN_API_TOKEN` in `.env`
+- Call `PATCH /v1/admin/billing-settings` with header:
+  - `X-Admin-Token: <ADMIN_API_TOKEN>`
