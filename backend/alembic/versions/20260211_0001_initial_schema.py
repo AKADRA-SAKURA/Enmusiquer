@@ -5,6 +5,12 @@ Revises:
 Create Date: 2026-02-11
 """
 
+# NOTE:
+# - 本番DB（PostgreSQL）では BIGINT 主キーを前提に運用する。
+# - テスト環境（SQLite）の主キー自動採番は、モデル側の DBInt 型
+#   （BigInteger + with_variant(Integer, "sqlite")）で吸収する。
+# - Alembic マイグレーションは本番向けDDLとして BIGINT を維持する。
+
 from typing import Sequence, Union
 
 from alembic import op

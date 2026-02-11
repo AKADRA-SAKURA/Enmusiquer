@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.v1.schemas import RankingsResponse
 from app.api.v1.serializers import serialize_tracks
 from app.db.session import get_db
 from app.models.track import Track
@@ -23,12 +24,12 @@ def _period_cutoff(period: Literal["daily", "weekly", "monthly"]) -> datetime:
     return now - timedelta(days=7)
 
 
-@router.get("/rankings")
+@router.get("/rankings", response_model=RankingsResponse)
 def get_rankings(
     period: Literal["daily", "weekly", "monthly"] = Query(default="weekly"),
     limit: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
-) -> dict:
+) -> RankingsResponse:
     cutoff = _period_cutoff(period)
 
     likes_subq = (

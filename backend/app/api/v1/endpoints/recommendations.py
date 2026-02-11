@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_current_user_id
 from app.api.v1.pagination import normalize_pagination
+from app.api.v1.schemas import RecommendationsResponse
 from app.api.v1.serializers import serialize_tracks
 from app.db.session import get_db
 from app.models.track import Track
@@ -16,13 +17,13 @@ from app.models.user_track_preference import UserTrackPreference
 router = APIRouter()
 
 
-@router.get("/recommendations")
+@router.get("/recommendations", response_model=RecommendationsResponse)
 def get_recommendations(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=50),
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
-) -> dict:
+) -> RecommendationsResponse:
     page, per_page = normalize_pagination(page, per_page)
 
     liked_track_ids = db.scalars(

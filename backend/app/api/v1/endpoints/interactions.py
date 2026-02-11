@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_current_user_id
+from app.api.v1.schemas import BookmarkResponse, PreferenceResponse
 from app.db.session import get_db
 from app.models.bookmark import Bookmark
 from app.models.track import Track
@@ -17,13 +18,13 @@ class PreferenceRequest(BaseModel):
     preference_type: str
 
 
-@router.post("/tracks/{track_id}/preference")
+@router.post("/tracks/{track_id}/preference", response_model=PreferenceResponse)
 def upsert_preference(
     track_id: int,
     payload: PreferenceRequest,
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
-) -> dict:
+) -> PreferenceResponse:
     if payload.preference_type not in {"like", "skip"}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -53,15 +54,17 @@ def upsert_preference(
         db.add(pref)
 
     db.commit()
-    return {"data": {"track_id": track_id, "preference_type": payload.preference_type}}
+    return PreferenceResponse.model_validate(
+        {"data": {"track_id": track_id, "preference_type": payload.preference_type}}
+    )
 
 
-@router.post("/tracks/{track_id}/bookmark")
+@router.post("/tracks/{track_id}/bookmark", response_model=BookmarkResponse)
 def create_bookmark(
     track_id: int,
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
-) -> dict:
+) -> BookmarkResponse:
     track = db.get(Track, track_id)
     if not track:
         raise HTTPException(
@@ -79,4 +82,4 @@ def create_bookmark(
         db.add(Bookmark(user_id=current_user_id, track_id=track_id))
         db.commit()
 
-    return {"data": {"track_id": track_id, "bookmarked": True}}
+    return BookmarkResponse.model_validate({"data": {"track_id": track_id, "bookmarked": True}})

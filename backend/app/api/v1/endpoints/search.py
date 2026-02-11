@@ -4,6 +4,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.v1.pagination import normalize_pagination
+from app.api.v1.schemas import TracksListResponse
 from app.api.v1.serializers import serialize_tracks
 from app.db.session import get_db
 from app.models.track import Track
@@ -19,13 +20,13 @@ class SearchByTagsRequest(BaseModel):
     per_page: int = Field(default=20, ge=1, le=50)
 
 
-@router.get("/search/tracks")
+@router.get("/search/tracks", response_model=TracksListResponse)
 def search_tracks(
     q: str = Query(min_length=1),
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=50),
     db: Session = Depends(get_db),
-) -> dict:
+) -> TracksListResponse:
     page, per_page = normalize_pagination(page, per_page)
     offset = (page - 1) * per_page
     keyword = f"%{q.strip()}%"
@@ -52,8 +53,11 @@ def search_tracks(
     }
 
 
-@router.post("/search/tracks/by-tags")
-def search_tracks_by_tags(payload: SearchByTagsRequest, db: Session = Depends(get_db)) -> dict:
+@router.post("/search/tracks/by-tags", response_model=TracksListResponse)
+def search_tracks_by_tags(
+    payload: SearchByTagsRequest,
+    db: Session = Depends(get_db),
+) -> TracksListResponse:
     page, per_page = normalize_pagination(payload.page, payload.per_page)
     offset = (page - 1) * per_page
     tag_ids = list(dict.fromkeys(payload.tag_ids))

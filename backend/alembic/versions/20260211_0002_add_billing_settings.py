@@ -5,6 +5,10 @@ Revises: 20260211_0001
 Create Date: 2026-02-11
 """
 
+# NOTE:
+# billing_settings.id も本番DDLは BIGINT 前提で定義する。
+# SQLite テスト互換はモデル側 DBInt 型で扱う。
+
 from typing import Sequence, Union
 
 from alembic import op

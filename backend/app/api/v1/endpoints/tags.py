@@ -3,6 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.v1.pagination import normalize_pagination
+from app.api.v1.schemas import TagsListResponse
 from app.db.session import get_db
 from app.models.tag import Tag
 
@@ -10,13 +11,13 @@ from app.models.tag import Tag
 router = APIRouter()
 
 
-@router.get("/tags")
+@router.get("/tags", response_model=TagsListResponse)
 def list_tags(
     q: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=50),
     db: Session = Depends(get_db),
-) -> dict:
+) -> TagsListResponse:
     page, per_page = normalize_pagination(page, per_page)
     offset = (page - 1) * per_page
 

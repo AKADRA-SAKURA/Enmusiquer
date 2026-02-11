@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.deps import get_current_user_id
 from app.api.v1.pagination import normalize_pagination
-from app.api.v1.serializers import serialize_track, serialize_tracks
+from app.api.v1.schemas import TrackResponse, TracksListResponse
+from app.api.v1.serializers import serialize_tracks
 from app.db.session import get_db
 from app.models.tag import Tag
 from app.models.track import Track
@@ -55,13 +56,13 @@ def _popular_query() -> Select:
     )
 
 
-@router.get("/tracks")
+@router.get("/tracks", response_model=TracksListResponse)
 def list_tracks(
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=50),
     sort: Literal["newest", "popular"] = Query(default="newest"),
     db: Session = Depends(get_db),
-) -> dict:
+) -> TracksListResponse:
     page, per_page = normalize_pagination(page, per_page)
     offset = (page - 1) * per_page
 
@@ -79,8 +80,8 @@ def list_tracks(
     }
 
 
-@router.get("/tracks/{track_id}")
-def get_track(track_id: int, db: Session = Depends(get_db)) -> dict:
+@router.get("/tracks/{track_id}", response_model=TrackResponse)
+def get_track(track_id: int, db: Session = Depends(get_db)) -> TrackResponse:
     track = db.get(Track, track_id)
     if not track:
         raise HTTPException(
@@ -89,15 +90,15 @@ def get_track(track_id: int, db: Session = Depends(get_db)) -> dict:
         )
 
     data = serialize_tracks(db, [track])[0]
-    return {"data": data}
+    return TrackResponse.model_validate({"data": data})
 
 
-@router.post("/tracks", status_code=status.HTTP_201_CREATED)
+@router.post("/tracks", response_model=TrackResponse, status_code=status.HTTP_201_CREATED)
 def create_track(
     payload: TrackCreateRequest,
     current_user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
-) -> dict:
+) -> TrackResponse:
     user_exists = db.scalar(select(User.id).where(User.id == current_user_id))
     if not user_exists:
         raise HTTPException(
@@ -165,4 +166,4 @@ def create_track(
 
     db.refresh(track)
     data = serialize_tracks(db, [track])[0]
-    return {"data": data}
+    return TrackResponse.model_validate({"data": data})
