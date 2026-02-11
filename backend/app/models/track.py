@@ -1,14 +1,15 @@
-from sqlalchemy import BigInteger, ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.db.types import DBInt
 from app.models.mixins import TimestampMixin
 
 
 class Track(TimestampMixin, Base):
     __tablename__ = "tracks"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(DBInt, primary_key=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     artist_display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     source_url: Mapped[str] = mapped_column(String(2048), unique=True, nullable=False)
@@ -25,7 +26,7 @@ class Track(TimestampMixin, Base):
     album_artist_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     created_by: Mapped[int] = mapped_column(
-        BigInteger,
+        DBInt,
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
     )

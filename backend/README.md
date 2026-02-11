@@ -7,6 +7,7 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e .
+pip install -e .[dev]
 Copy-Item .env.example .env
 ```
 
@@ -16,10 +17,29 @@ Copy-Item .env.example .env
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
+## Local Auth Token (MVP)
+
+- Protected endpoints accept local token format:
+  - `Authorization: Bearer dev-user-<user_id>`
+- Example:
+  - `Authorization: Bearer dev-user-1`
+
 ## Run Migrations
 
 ```powershell
 alembic upgrade head
+```
+
+## Seed MVP Data
+
+```powershell
+python scripts/seed_mvp.py
+```
+
+## Run Tests
+
+```powershell
+pytest -q
 ```
 
 ## Billing Flag Admin API

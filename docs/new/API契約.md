@@ -28,6 +28,10 @@
 - ヘッダ: `X-Admin-Token: <admin token>`
 - 対象: `PATCH /admin/billing-settings`
 
+開発環境での暫定認証:
+
+- `Authorization: Bearer dev-user-<user_id>`
+
 ### 1.3 文字コード/日時
 
 - 文字コード: UTF-8

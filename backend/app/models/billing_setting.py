@@ -1,16 +1,17 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, String, Text, text
+from sqlalchemy import Boolean, DateTime, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.db.types import DBInt
 from app.models.mixins import TimestampMixin
 
 
 class BillingSetting(TimestampMixin, Base):
     __tablename__ = "billing_settings"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(DBInt, primary_key=True)
     billing_enabled: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

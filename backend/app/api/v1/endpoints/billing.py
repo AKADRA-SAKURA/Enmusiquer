@@ -58,7 +58,10 @@ def can_charge_now(setting: BillingSetting) -> bool:
         return False
     if setting.effective_at is None:
         return True
-    return setting.effective_at <= datetime.now(timezone.utc)
+    effective_at = setting.effective_at
+    if effective_at.tzinfo is None:
+        effective_at = effective_at.replace(tzinfo=timezone.utc)
+    return effective_at <= datetime.now(timezone.utc)
 
 
 def require_admin_token(x_admin_token: str | None = Header(default=None, alias="X-Admin-Token")) -> None:

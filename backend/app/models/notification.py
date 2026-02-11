@@ -1,16 +1,17 @@
-from sqlalchemy import BigInteger, Boolean, ForeignKey, String, Text
+from sqlalchemy import Boolean, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.db.types import DBInt
 from app.models.mixins import TimestampMixin
 
 
 class Notification(TimestampMixin, Base):
     __tablename__ = "notifications"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(DBInt, primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        BigInteger,
+        DBInt,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
