@@ -82,3 +82,18 @@ powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment dev -Comman
 powershell -ExecutionPolicy Bypass -File scripts/tf-plan-all.ps1
 powershell -ExecutionPolicy Bypass -File scripts/tf-plan-all.ps1 -Scope all
 ```
+## まず最初に実行する診断
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/tf-doctor.ps1 -RunSecretGuard
+```
+
+エラーが 0 になる状態で `tf.ps1` / `tf-plan-all.ps1` を実行してください。
+## 初回セットアップの推奨コマンド
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/tf-setup.ps1 -RunDoctor
+```
+
+その後、`tf-plan-all.ps1` で shared/dev/prod の順に `plan` を確認してください。
+hooks設定だけ後回しにする場合は `-SkipHooks` を付けて実行できます。

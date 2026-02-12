@@ -194,3 +194,31 @@ powershell -ExecutionPolicy Bypass -File scripts/tf-plan-all.ps1 -Scope all -Rec
 
 オプション:
 - `-SkipSecretCheck`: 先頭の機密チェックをスキップ（通常は未指定推奨）
+## 事前診断（doctor）
+
+Terraform実行前に、CLI/認証/必要ファイルを確認できます。
+
+```powershell
+# 基本チェック
+powershell -ExecutionPolicy Bypass -File scripts/tf-doctor.ps1
+
+# AWS STS確認をスキップ（CLI導入直後など）
+powershell -ExecutionPolicy Bypass -File scripts/tf-doctor.ps1 -SkipAwsSts
+
+# secret guard も合わせて実行
+powershell -ExecutionPolicy Bypass -File scripts/tf-doctor.ps1 -RunSecretGuard
+```
+## 初期セットアップ（まとめて実行）
+
+```powershell
+# hooks設定 + backend/tfvars の雛形作成
+powershell -ExecutionPolicy Bypass -File scripts/tf-setup.ps1
+
+# 既存ファイルも上書きして作り直す
+powershell -ExecutionPolicy Bypass -File scripts/tf-setup.ps1 -Force
+
+# セットアップ後に診断まで実行
+powershell -ExecutionPolicy Bypass -File scripts/tf-setup.ps1 -RunDoctor
+```
+補足:
+- `-SkipHooks`: `git config core.hooksPath` が権限都合で実行できない環境向け
