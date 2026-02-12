@@ -44,3 +44,23 @@ git rm --cached infra/terraform/envs/prod/backend.hcl
 ```
 
 その後、`backend.hcl` は `.gitignore` によりローカル専用になります。
+
+## Local pre-commit guard (recommended)
+
+Before your first commit in this clone:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install_git_hooks.ps1
+```
+
+Manual check (can be run any time):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/check_terraform_secrets.ps1
+```
+
+This blocks commits when:
+- `terraform.tfvars` / `*.tfstate*` are tracked
+- `infra/terraform/envs/*/backend.hcl` is tracked by Git
+- `infra/terraform/envs/*/backend.hcl.example` loses placeholder bucket value
+- Discord webhook URL or AWS key patterns are detected in `infra/terraform`

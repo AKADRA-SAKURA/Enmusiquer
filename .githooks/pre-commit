@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if command -v pwsh >/dev/null 2>&1; then
+  pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check_terraform_secrets.ps1
+  exit 0
+fi
+
+if command -v powershell.exe >/dev/null 2>&1; then
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/check_terraform_secrets.ps1
+  exit 0
+fi
+
+echo "[ERROR] PowerShell is required for Terraform secret guard hook."
+echo "Install pwsh or run scripts/check_terraform_secrets.ps1 manually before commit."
+exit 1

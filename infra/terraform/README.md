@@ -139,3 +139,19 @@ terraform apply -var-file=terraform.tfvars
 ```
 
 `dev` / `prod` も同じ手順で実行してください。
+
+## Secret guard (local)
+
+See `infra/terraform/SECURITY.md` for details.
+
+Quick setup:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/install_git_hooks.ps1
+```
+
+Manual run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/check_terraform_secrets.ps1
+```
