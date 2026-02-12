@@ -241,3 +241,23 @@ powershell -ExecutionPolicy Bypass -File scripts/tf-apply-safe.ps1 -Environment 
 - `-SkipPlan`: 事前 `plan` を省略
 - `-SkipSecretCheck`: 事前 `secret guard` を省略（通常は未指定推奨）
 - `-ReconfigureInit`: `init -reconfigure` を実行
+## 統合CLI（tf-cli.ps1）
+
+複数スクリプトをまとめて呼び出す入口です。
+
+```powershell
+# secret check
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task secret-check
+
+# doctor + secret guard
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task doctor -RunSecretGuard
+
+# plan-all (shared -> dev -> prod)
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task plan-all -Scope all -ReconfigureInit
+
+# safe apply (dev)
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task apply-safe -Environment dev
+
+# raw run (tf.ps1 相当)
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task run -Environment dev -RunCommand plan
+```

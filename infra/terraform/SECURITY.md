@@ -105,3 +105,12 @@ hooks設定だけ後回しにする場合は `-SkipHooks` を付けて実行で�
 powershell -ExecutionPolicy Bypass -File scripts/tf-apply-safe.ps1 -Environment dev
 powershell -ExecutionPolicy Bypass -File scripts/tf-apply-safe.ps1 -Environment prod -ProdApproveToken apply-prod
 ```
+## 統合CLIの利用
+
+運用時は `tf-cli.ps1` を入口にすると、手順を統一しやすくなります。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task doctor -RunSecretGuard
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task plan-all -Scope all
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task apply-safe -Environment dev
+```
