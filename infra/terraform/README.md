@@ -19,7 +19,7 @@
 
 - Terraform `>= 1.6.0`
 - AWS認証情報が設定済み（`aws configure` または SSO）
-- リモートステート/ロック用の S3 バケットと DynamoDB テーブルが作成済み
+- リモートステート/ロック用の S3 バケットが作成済み
 
 ## CI
 
@@ -38,7 +38,11 @@
 必須項目:
 
 - `bucket`
-- `dynamodb_table`
+- `key`
+- `region`
+- `use_lockfile`
+
+`dynamodb_table` は非推奨のため、本構成では使用しません。
 
 ## 2) tfvars の作成
 
@@ -90,6 +94,7 @@
 - CloudFront（`edge_enabled`）
 - ALB向けWAF（`edge_enabled && runtime_enabled`）
 - CloudWatchアラーム（`monitoring_enabled && runtime_enabled`）
+- Discord通知ブリッジ（`discord_alert_enabled`）
 - Route53 Aliasレコード（`create_dns_records`）
 
 現在のWAFは `REGIONAL` スコープで ALB に関連付ける設計です。
@@ -104,6 +109,17 @@
 - `create_dns_records = true`
 - `api_record_name`（例: `api-dev` / `api`）
 - `cdn_record_name`（例: `cdn-dev` / `cdn`）
+
+### CloudWatchアラームをDiscordへ通知する場合
+
+- `discord_alert_enabled = true`
+- `discord_webhook_url = "<Discord Incoming Webhook URL>"`
+- `monitoring_enabled = true`（アラーム作成が必要）
+
+通知先の優先順位:
+
+- `monitoring_alarm_actions` が空でない場合: その値を使用
+- `monitoring_alarm_actions` が空で `discord_alert_enabled=true` の場合: 自動生成SNSトピック（Discord連携）を使用
 
 ## 3) 適用順序
 

@@ -25,6 +25,8 @@ cloudfront_acm_certificate_arn  = null
 
 monitoring_enabled      = false
 monitoring_alarm_actions = []
+discord_alert_enabled    = false
+discord_webhook_url      = null
 
 create_dns_records = false
 api_record_name    = "api"

@@ -15,7 +15,7 @@ variable "existing_hosted_zone_id" {
   default     = null
 
   validation {
-    condition     = var.create_hosted_zone || (var.existing_hosted_zone_id != null && trim(var.existing_hosted_zone_id) != "")
+    condition     = var.create_hosted_zone || (var.existing_hosted_zone_id != null && trimspace(var.existing_hosted_zone_id) != "")
     error_message = "existing_hosted_zone_id is required when create_hosted_zone is false."
   }
 }

@@ -48,6 +48,11 @@ output "monitoring_alarm_names" {
   description = "CloudWatch alarm names for dev."
 }
 
+output "discord_alert_topic_arn" {
+  value       = module.discord_alerting.topic_arn
+  description = "SNS topic ARN used for Discord alerts in dev."
+}
+
 output "api_domain_name" {
   value       = try(aws_route53_record.api_alias[0].fqdn, null)
   description = "API domain name for dev."

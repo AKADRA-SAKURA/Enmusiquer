@@ -134,6 +134,19 @@ variable "monitoring_alarm_actions" {
   default     = []
 }
 
+variable "discord_alert_enabled" {
+  type        = bool
+  description = "Create Discord alerting bridge (SNS + Lambda) when true."
+  default     = false
+}
+
+variable "discord_webhook_url" {
+  type        = string
+  description = "Discord webhook URL used by alerting Lambda."
+  default     = null
+  sensitive   = true
+}
+
 variable "create_dns_records" {
   type        = bool
   description = "Create Route53 records for dev when true."

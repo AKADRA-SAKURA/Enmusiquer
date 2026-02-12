@@ -46,6 +46,7 @@ locals {
   api_image           = var.use_shared_ecr_image ? "${local.shared_backend_repo}:${var.api_image_tag}" : var.api_container_image
   api_env             = merge(var.api_environment_variables, var.runtime_enabled ? { DB_HOST = module.rds_postgres.db_endpoint } : {})
   api_secrets         = merge(var.api_secret_arns, var.runtime_enabled ? { DB_MASTER_SECRET_ARN = module.rds_postgres.db_secret_arn } : {})
+  monitoring_alarm_actions_effective = length(var.monitoring_alarm_actions) > 0 ? var.monitoring_alarm_actions : compact([module.discord_alerting.topic_arn])
 }
 
 check "shared_backend_repo_available" {
@@ -122,6 +123,14 @@ module "app_s3" {
   environment = local.environment
 }
 
+module "discord_alerting" {
+  source      = "../../modules/discord_alerting"
+  name_prefix = local.name_prefix
+  environment = local.environment
+  enabled     = var.discord_alert_enabled
+  discord_webhook_url = var.discord_webhook_url
+}
+
 module "monitoring" {
   source      = "../../modules/monitoring"
   name_prefix = local.name_prefix
@@ -131,7 +140,7 @@ module "monitoring" {
   ecs_service_name = module.ecs_service.service_name
   alb_arn_suffix   = module.alb.alb_arn_suffix
   db_identifier    = module.rds_postgres.db_identifier
-  alarm_actions    = var.monitoring_alarm_actions
+  alarm_actions    = local.monitoring_alarm_actions_effective
 }
 
 module "cognito_auth" {
