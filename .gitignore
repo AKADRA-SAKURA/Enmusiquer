@@ -12,6 +12,8 @@ pytest-cache-files-*/
 *.tfstate
 *.tfstate.*
 *.tfplan
+*.tfvars.json
+*.tfbackend
 crash.log
 override.tf
 override.tf.json
@@ -19,6 +21,7 @@ override.tf.json
 *_override.tf.json
 terraform.tfvars
 *.auto.tfvars
+infra/terraform/envs/*/backend.hcl
 
 # OS
 .DS_Store
