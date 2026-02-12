@@ -43,18 +43,38 @@ module "ecs_service" {
   source      = "../../modules/ecs_service"
   name_prefix = local.name_prefix
   environment = local.environment
+  enabled     = var.runtime_enabled
+  vpc_id      = data.terraform_remote_state.shared.outputs.vpc_id
+  private_subnet_ids = data.terraform_remote_state.shared.outputs.private_subnet_ids
+  target_group_arn   = module.alb.target_group_arn
+  alb_security_group_id = module.alb.security_group_id
+  container_image    = var.api_container_image
+  container_port     = var.api_container_port
+  desired_count      = var.api_desired_count
 }
 
 module "rds_postgres" {
   source      = "../../modules/rds_postgres"
   name_prefix = local.name_prefix
   environment = local.environment
+  enabled                  = var.runtime_enabled
+  vpc_id                   = data.terraform_remote_state.shared.outputs.vpc_id
+  private_subnet_ids       = data.terraform_remote_state.shared.outputs.private_subnet_ids
+  app_security_group_id    = module.ecs_service.security_group_id
+  instance_class           = var.db_instance_class
+  multi_az                 = var.db_multi_az
+  backup_retention_period  = var.db_backup_retention_period
+  deletion_protection      = var.db_deletion_protection
 }
 
 module "alb" {
   source      = "../../modules/alb"
   name_prefix = local.name_prefix
   environment = local.environment
+  enabled     = var.runtime_enabled
+  vpc_id      = data.terraform_remote_state.shared.outputs.vpc_id
+  public_subnet_ids = data.terraform_remote_state.shared.outputs.public_subnet_ids
+  container_port = var.api_container_port
 }
 
 module "waf" {

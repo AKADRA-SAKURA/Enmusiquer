@@ -50,6 +50,23 @@ For each environment:
 `envs/dev` and `envs/prod` read `envs/shared` outputs via `terraform_remote_state`.
 Apply `shared` first.
 
+Runtime resources in `envs/dev` and `envs/prod`:
+
+- ALB
+- ECS (Fargate)
+- RDS PostgreSQL
+
+These are controlled by `runtime_enabled`.
+Set `runtime_enabled = false` during development to avoid runtime charges.
+Switch to `true` only when starting actual release operation.
+
+Always-on resources in `envs/dev` and `envs/prod`:
+
+- App S3 bucket
+- Cognito user pool + app client
+
+`cloudfront`, `waf`, and `monitoring` modules are still placeholders.
+
 ## 3) Apply order
 
 Apply in this order:

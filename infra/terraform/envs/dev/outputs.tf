@@ -13,9 +13,34 @@ output "alb_name" {
   description = "ALB name for dev."
 }
 
+output "alb_dns_name" {
+  value       = module.alb.alb_dns_name
+  description = "ALB DNS name for dev."
+}
+
 output "app_bucket_name" {
   value       = module.app_s3.bucket_name
   description = "App bucket name for dev."
+}
+
+output "db_endpoint" {
+  value       = module.rds_postgres.db_endpoint
+  description = "RDS endpoint for dev."
+}
+
+output "db_secret_arn" {
+  value       = module.rds_postgres.db_secret_arn
+  description = "Secrets Manager ARN for dev DB credential."
+}
+
+output "cognito_user_pool_id" {
+  value       = module.cognito_auth.user_pool_id
+  description = "Cognito user pool ID for dev."
+}
+
+output "cognito_user_pool_client_id" {
+  value       = module.cognito_auth.user_pool_client_id
+  description = "Cognito app client ID for dev."
 }
 
 output "shared_vpc_id" {
