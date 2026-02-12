@@ -23,6 +23,26 @@ output "app_bucket_name" {
   description = "App bucket name for dev."
 }
 
+output "cloudfront_domain_name" {
+  value       = module.cloudfront.distribution_domain_name
+  description = "CloudFront domain name for dev."
+}
+
+output "cloudfront_distribution_id" {
+  value       = module.cloudfront.distribution_id
+  description = "CloudFront distribution ID for dev."
+}
+
+output "waf_web_acl_arn" {
+  value       = module.waf.web_acl_arn
+  description = "WAF web ACL ARN for dev."
+}
+
+output "monitoring_alarm_names" {
+  value       = module.monitoring.alarm_names
+  description = "CloudWatch alarm names for dev."
+}
+
 output "db_endpoint" {
   value       = module.rds_postgres.db_endpoint
   description = "RDS endpoint for dev."

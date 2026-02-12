@@ -65,7 +65,18 @@ Always-on resources in `envs/dev` and `envs/prod`:
 - App S3 bucket
 - Cognito user pool + app client
 
-`cloudfront`, `waf`, and `monitoring` modules are still placeholders.
+Optional resources in `envs/dev` and `envs/prod`:
+
+- CloudFront (`edge_enabled`)
+- WAF for ALB (`edge_enabled && runtime_enabled`)
+- CloudWatch alarms (`monitoring_enabled && runtime_enabled`)
+
+Current WAF module scope is `REGIONAL` and associates to ALB.
+
+For CloudFront custom domain, also set:
+
+- `cloudfront_aliases`
+- `cloudfront_acm_certificate_arn` (must be in `us-east-1`)
 
 ## 3) Apply order
 

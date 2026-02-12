@@ -154,6 +154,16 @@ output "alb_dns_name" {
   description = "ALB DNS name."
 }
 
+output "alb_arn" {
+  value       = var.enabled ? aws_lb.this[0].arn : null
+  description = "ALB ARN."
+}
+
+output "alb_arn_suffix" {
+  value       = var.enabled ? aws_lb.this[0].arn_suffix : null
+  description = "ALB ARN suffix for CloudWatch metrics."
+}
+
 output "target_group_arn" {
   value       = var.enabled ? aws_lb_target_group.api[0].arn : null
   description = "Target group ARN for API service."

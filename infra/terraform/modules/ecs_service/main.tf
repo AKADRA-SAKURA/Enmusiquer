@@ -124,7 +124,7 @@ resource "aws_security_group" "ecs" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "from_alb" {
-  count = var.enabled && var.alb_security_group_id != null ? 1 : 0
+  count = var.enabled ? 1 : 0
 
   security_group_id            = aws_security_group.ecs[0].id
   ip_protocol                  = "tcp"
@@ -193,13 +193,10 @@ resource "aws_ecs_service" "this" {
     assign_public_ip = false
   }
 
-  dynamic "load_balancer" {
-    for_each = var.target_group_arn != null ? [1] : []
-    content {
-      target_group_arn = var.target_group_arn
-      container_name   = "api"
-      container_port   = var.container_port
-    }
+  load_balancer {
+    target_group_arn = var.target_group_arn
+    container_name   = "api"
+    container_port   = var.container_port
   }
 
   depends_on = [aws_iam_role_policy_attachment.execution]

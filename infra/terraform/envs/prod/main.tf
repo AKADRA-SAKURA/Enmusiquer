@@ -81,12 +81,21 @@ module "waf" {
   source      = "../../modules/waf"
   name_prefix = local.name_prefix
   environment = local.environment
+  enabled     = var.edge_enabled && var.runtime_enabled
+  resource_arn = module.alb.alb_arn
+  rate_limit  = var.waf_rate_limit
 }
 
 module "cloudfront" {
   source      = "../../modules/cloudfront"
   name_prefix = local.name_prefix
   environment = local.environment
+  enabled     = var.edge_enabled
+  origin_bucket_name                 = module.app_s3.bucket_name
+  origin_bucket_regional_domain_name = module.app_s3.bucket_regional_domain_name
+  web_acl_arn                        = null
+  aliases                            = var.cloudfront_aliases
+  acm_certificate_arn                = var.cloudfront_acm_certificate_arn
 }
 
 module "app_s3" {
@@ -99,6 +108,12 @@ module "monitoring" {
   source      = "../../modules/monitoring"
   name_prefix = local.name_prefix
   environment = local.environment
+  enabled          = var.monitoring_enabled && var.runtime_enabled
+  ecs_cluster_name = module.ecs_service.cluster_name
+  ecs_service_name = module.ecs_service.service_name
+  alb_arn_suffix   = module.alb.alb_arn_suffix
+  db_identifier    = module.rds_postgres.db_identifier
+  alarm_actions    = var.monitoring_alarm_actions
 }
 
 module "cognito_auth" {

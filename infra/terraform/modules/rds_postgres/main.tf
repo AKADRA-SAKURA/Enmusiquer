@@ -85,7 +85,7 @@ resource "aws_security_group" "rds" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "postgres_from_app" {
-  count = var.enabled && var.app_security_group_id != null ? 1 : 0
+  count = var.enabled ? 1 : 0
 
   security_group_id            = aws_security_group.rds[0].id
   ip_protocol                  = "tcp"

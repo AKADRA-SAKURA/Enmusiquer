@@ -73,3 +73,39 @@ variable "db_deletion_protection" {
   description = "Enable RDS deletion protection."
   default     = true
 }
+
+variable "edge_enabled" {
+  type        = bool
+  description = "Enable edge resources (CloudFront/WAF) when true."
+  default     = false
+}
+
+variable "waf_rate_limit" {
+  type        = number
+  description = "WAF rate-based rule limit per 5 minutes."
+  default     = 2000
+}
+
+variable "cloudfront_aliases" {
+  type        = list(string)
+  description = "CloudFront alternate domain names."
+  default     = []
+}
+
+variable "cloudfront_acm_certificate_arn" {
+  type        = string
+  description = "ACM certificate ARN in us-east-1 for CloudFront aliases."
+  default     = null
+}
+
+variable "monitoring_enabled" {
+  type        = bool
+  description = "Enable CloudWatch alarms when true."
+  default     = false
+}
+
+variable "monitoring_alarm_actions" {
+  type        = list(string)
+  description = "CloudWatch alarm action ARNs (for example SNS topic ARN)."
+  default     = []
+}
