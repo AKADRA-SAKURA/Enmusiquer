@@ -74,3 +74,11 @@ powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment shared -Com
 powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment shared -Command plan
 powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment dev -Command validate
 ```
+## 複数環境 plan の実行
+
+`shared -> dev -> (option) prod` の順でまとめて確認する場合:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/tf-plan-all.ps1
+powershell -ExecutionPolicy Bypass -File scripts/tf-plan-all.ps1 -Scope all
+```

@@ -177,3 +177,20 @@ powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment prod -Comma
 - `-InitIfNeeded`: `validate/plan/apply` 実行時に `.terraform` が無ければ先に `init`
 - `-AutoApprove`: `apply` 時に `-auto-approve` を付与
 - `-VarFile`: `terraform.tfvars` 以外を使う場合に指定
+## 一括 plan 実行（shared -> dev -> prod）
+
+複数環境の `init/plan` を順番に実行する場合は、以下を使います。
+
+```powershell
+# shared -> dev
+powershell -ExecutionPolicy Bypass -File scripts/tf-plan-all.ps1
+
+# shared -> dev -> prod
+powershell -ExecutionPolicy Bypass -File scripts/tf-plan-all.ps1 -Scope all
+
+# backend再設定付き
+powershell -ExecutionPolicy Bypass -File scripts/tf-plan-all.ps1 -Scope all -ReconfigureInit
+```
+
+オプション:
+- `-SkipSecretCheck`: 先頭の機密チェックをスキップ（通常は未指定推奨）
