@@ -17,3 +17,13 @@ output "app_bucket_name" {
   value       = module.app_s3.bucket_name
   description = "App bucket name for dev."
 }
+
+output "shared_vpc_id" {
+  value       = data.terraform_remote_state.shared.outputs.vpc_id
+  description = "Shared VPC ID referenced by dev."
+}
+
+output "shared_private_subnet_ids" {
+  value       = data.terraform_remote_state.shared.outputs.private_subnet_ids
+  description = "Shared private subnet IDs referenced by dev."
+}

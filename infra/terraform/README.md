@@ -6,6 +6,14 @@ This directory manages AWS infrastructure in one account with three Terraform en
 - `envs/dev`: dev runtime resources
 - `envs/prod`: prod runtime resources
 
+`envs/shared` currently creates:
+
+- VPC (`10.20.0.0/16` default)
+- Public/Private subnets (2 AZ)
+- Internet Gateway + route tables
+- ECR repositories (`enm/backend`, `enm/frontend` default)
+- Route53 hosted zone (`create_hosted_zone=true` by default)
+
 ## Prerequisites
 
 - Terraform `>= 1.6.0`
@@ -31,6 +39,16 @@ For each environment:
 
 1. Copy `terraform.tfvars.example` to `terraform.tfvars`
 2. Set `root_domain` and any environment-specific values
+3. If you already have a hosted zone, set:
+   - `create_hosted_zone = false`
+   - `existing_hosted_zone_id = "ZXXXXXXXXXXXX"`
+4. In `envs/dev` and `envs/prod`, set:
+   - `shared_state_bucket`
+   - `shared_state_key` (default: `enm/shared/terraform.tfstate`)
+   - `shared_state_region`
+
+`envs/dev` and `envs/prod` read `envs/shared` outputs via `terraform_remote_state`.
+Apply `shared` first.
 
 ## 3) Apply order
 

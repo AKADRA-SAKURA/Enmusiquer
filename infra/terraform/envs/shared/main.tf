@@ -30,19 +30,23 @@ provider "aws" {
 }
 
 module "network_shared" {
-  source      = "../../modules/network_shared"
-  name_prefix = local.name_prefix
-  environment = local.environment
+  source               = "../../modules/network_shared"
+  name_prefix          = local.name_prefix
+  vpc_cidr             = var.vpc_cidr
+  azs                  = var.azs
+  public_subnet_cidrs  = var.public_subnet_cidrs
+  private_subnet_cidrs = var.private_subnet_cidrs
 }
 
 module "ecr_shared" {
   source            = "../../modules/ecr_shared"
-  repository_prefix = "enm"
-  environment       = local.environment
+  repository_prefix = var.ecr_repository_prefix
+  repository_names  = var.ecr_repository_names
 }
 
 module "route53_shared" {
-  source      = "../../modules/route53_shared"
-  root_domain = var.root_domain
-  environment = local.environment
+  source                  = "../../modules/route53_shared"
+  root_domain             = var.root_domain
+  create_hosted_zone      = var.create_hosted_zone
+  existing_hosted_zone_id = var.existing_hosted_zone_id
 }

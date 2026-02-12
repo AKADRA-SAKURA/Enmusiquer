@@ -29,6 +29,16 @@ provider "aws" {
   }
 }
 
+data "terraform_remote_state" "shared" {
+  backend = "s3"
+
+  config = {
+    bucket = var.shared_state_bucket
+    key    = var.shared_state_key
+    region = var.shared_state_region
+  }
+}
+
 module "ecs_service" {
   source      = "../../modules/ecs_service"
   name_prefix = local.name_prefix
