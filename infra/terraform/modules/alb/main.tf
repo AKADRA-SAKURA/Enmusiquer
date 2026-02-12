@@ -164,6 +164,11 @@ output "alb_arn_suffix" {
   description = "ALB ARN suffix for CloudWatch metrics."
 }
 
+output "alb_zone_id" {
+  value       = var.enabled ? aws_lb.this[0].zone_id : null
+  description = "ALB hosted zone ID for Route53 alias."
+}
+
 output "target_group_arn" {
   value       = var.enabled ? aws_lb_target_group.api[0].arn : null
   description = "Target group ARN for API service."

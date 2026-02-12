@@ -109,3 +109,21 @@ variable "monitoring_alarm_actions" {
   description = "CloudWatch alarm action ARNs (for example SNS topic ARN)."
   default     = []
 }
+
+variable "create_dns_records" {
+  type        = bool
+  description = "Create Route53 records for prod when true."
+  default     = false
+}
+
+variable "api_record_name" {
+  type        = string
+  description = "Subdomain label for API record."
+  default     = "api"
+}
+
+variable "cdn_record_name" {
+  type        = string
+  description = "Subdomain label for CDN record."
+  default     = "cdn"
+}

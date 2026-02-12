@@ -70,6 +70,7 @@ Optional resources in `envs/dev` and `envs/prod`:
 - CloudFront (`edge_enabled`)
 - WAF for ALB (`edge_enabled && runtime_enabled`)
 - CloudWatch alarms (`monitoring_enabled && runtime_enabled`)
+- Route53 alias records (`create_dns_records`)
 
 Current WAF module scope is `REGIONAL` and associates to ALB.
 
@@ -77,6 +78,12 @@ For CloudFront custom domain, also set:
 
 - `cloudfront_aliases`
 - `cloudfront_acm_certificate_arn` (must be in `us-east-1`)
+
+For DNS records, set:
+
+- `create_dns_records = true`
+- `api_record_name` (for example `api-dev` / `api`)
+- `cdn_record_name` (for example `cdn-dev` / `cdn`)
 
 ## 3) Apply order
 

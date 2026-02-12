@@ -34,6 +34,11 @@ variable "aliases" {
   type        = list(string)
   description = "Alternate domain names (CNAMEs)."
   default     = []
+
+  validation {
+    condition     = length(var.aliases) == 0 || var.acm_certificate_arn != null
+    error_message = "acm_certificate_arn is required when aliases is not empty."
+  }
 }
 
 variable "acm_certificate_arn" {
@@ -146,4 +151,9 @@ output "distribution_domain_name" {
 output "distribution_id" {
   value       = var.enabled ? aws_cloudfront_distribution.this[0].id : null
   description = "CloudFront distribution ID."
+}
+
+output "distribution_hosted_zone_id" {
+  value       = var.enabled ? aws_cloudfront_distribution.this[0].hosted_zone_id : null
+  description = "CloudFront hosted zone ID for Route53 alias."
 }

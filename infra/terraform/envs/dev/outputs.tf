@@ -43,6 +43,16 @@ output "monitoring_alarm_names" {
   description = "CloudWatch alarm names for dev."
 }
 
+output "api_domain_name" {
+  value       = try(aws_route53_record.api_alias[0].fqdn, null)
+  description = "API domain name for dev."
+}
+
+output "cdn_domain_record_name" {
+  value       = try(aws_route53_record.cdn_alias[0].fqdn, null)
+  description = "CDN domain name for dev."
+}
+
 output "db_endpoint" {
   value       = module.rds_postgres.db_endpoint
   description = "RDS endpoint for dev."

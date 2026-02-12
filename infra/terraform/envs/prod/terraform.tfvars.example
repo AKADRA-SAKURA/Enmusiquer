@@ -21,3 +21,7 @@ cloudfront_acm_certificate_arn  = null
 
 monitoring_enabled      = false
 monitoring_alarm_actions = []
+
+create_dns_records = false
+api_record_name    = "api"
+cdn_record_name    = "cdn"

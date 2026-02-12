@@ -39,6 +39,11 @@ data "terraform_remote_state" "shared" {
   }
 }
 
+locals {
+  api_fqdn = "${var.api_record_name}.${var.root_domain}"
+  cdn_fqdn = "${var.cdn_record_name}.${var.root_domain}"
+}
+
 module "ecs_service" {
   source      = "../../modules/ecs_service"
   name_prefix = local.name_prefix
@@ -121,4 +126,32 @@ module "cognito_auth" {
   name_prefix = local.name_prefix
   environment = local.environment
   root_domain = var.root_domain
+}
+
+resource "aws_route53_record" "api_alias" {
+  count = var.create_dns_records && var.runtime_enabled ? 1 : 0
+
+  zone_id = data.terraform_remote_state.shared.outputs.hosted_zone_id
+  name    = local.api_fqdn
+  type    = "A"
+
+  alias {
+    name                   = module.alb.alb_dns_name
+    zone_id                = module.alb.alb_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "cdn_alias" {
+  count = var.create_dns_records && var.edge_enabled ? 1 : 0
+
+  zone_id = data.terraform_remote_state.shared.outputs.hosted_zone_id
+  name    = local.cdn_fqdn
+  type    = "A"
+
+  alias {
+    name                   = module.cloudfront.distribution_domain_name
+    zone_id                = module.cloudfront.distribution_hosted_zone_id
+    evaluate_target_health = false
+  }
 }
