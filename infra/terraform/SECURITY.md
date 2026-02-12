@@ -64,3 +64,13 @@ This blocks commits when:
 - `infra/terraform/envs/*/backend.hcl` is tracked by Git
 - `infra/terraform/envs/*/backend.hcl.example` loses placeholder bucket value
 - Discord webhook URL or AWS key patterns are detected in `infra/terraform`
+
+## Terraform実行の推奨方法
+
+PowerShellでは引数解釈差異が起きやすいため、以下のラッパー経由を推奨します。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment shared -Command init -Reconfigure
+powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment shared -Command plan
+powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment dev -Command validate
+```

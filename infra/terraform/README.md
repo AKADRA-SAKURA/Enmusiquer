@@ -155,3 +155,25 @@ Manual run:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/check_terraform_secrets.ps1
 ```
+## Terraform実行ラッパー（PowerShell）
+
+PowerShellで `-chdir` や引数解釈に詰まりやすいため、ラッパーを追加しました。
+
+```powershell
+# 例: dev validate
+powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment dev -Command validate
+
+# 例: shared init（reconfigure）
+powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment shared -Command init -Reconfigure
+
+# 例: dev plan
+powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment dev -Command plan
+
+# 例: prod apply
+powershell -ExecutionPolicy Bypass -File scripts/tf.ps1 -Environment prod -Command apply
+```
+
+オプション:
+- `-InitIfNeeded`: `validate/plan/apply` 実行時に `.terraform` が無ければ先に `init`
+- `-AutoApprove`: `apply` 時に `-auto-approve` を付与
+- `-VarFile`: `terraform.tfvars` 以外を使う場合に指定
