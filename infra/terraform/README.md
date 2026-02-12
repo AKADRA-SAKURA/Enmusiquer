@@ -1,117 +1,119 @@
-# Terraform Layout
+# Terraform 構成
 
-This directory manages AWS infrastructure in one account with three Terraform environments:
+このディレクトリでは、1つのAWSアカウント内で以下3つのTerraform環境を管理します。
 
-- `envs/shared`: shared foundation resources
-- `envs/dev`: dev runtime resources
-- `envs/prod`: prod runtime resources
+- `envs/shared`: 共通基盤リソース
+- `envs/dev`: 開発環境の実行系リソース
+- `envs/prod`: 本番環境の実行系リソース
 
-`envs/shared` currently creates:
+## `envs/shared` で作成するもの
 
-- VPC (`10.20.0.0/16` default)
-- Public/Private subnets (2 AZ)
-- Internet Gateway + route tables
-- ECR repositories (`enm/backend`, `enm/frontend` default)
-- ECR lifecycle policy (keep last 50 images by default)
-- Route53 hosted zone (`create_hosted_zone=true` by default)
+- VPC（デフォルト: `10.20.0.0/16`）
+- Public / Private サブネット（2AZ）
+- Internet Gateway + ルートテーブル
+- ECRリポジトリ（デフォルト: `enm/backend`, `enm/frontend`）
+- ECRライフサイクルポリシー（デフォルトで最新50件保持）
+- Route53 Hosted Zone（デフォルト: `create_hosted_zone=true`）
 
-## Prerequisites
+## 前提条件
 
 - Terraform `>= 1.6.0`
-- AWS credentials configured (`aws configure` or SSO)
-- Existing S3 bucket and DynamoDB table for remote state/lock
+- AWS認証情報が設定済み（`aws configure` または SSO）
+- リモートステート/ロック用の S3 バケットと DynamoDB テーブルが作成済み
 
 ## CI
 
 - GitHub Actions: `.github/workflows/terraform-validate.yml`
-- Runs `fmt -check` and `validate` for `envs/shared`, `envs/dev`, `envs/prod`
-- `init` uses `-backend=false` in CI
+- `envs/shared`, `envs/dev`, `envs/prod` に対して `fmt -check` と `validate` を実行
+- CIの `init` は `-backend=false` で実行
 
-## 1) Configure backend files
+## 1) backendファイルの設定
 
-Replace placeholders in:
+以下のプレースホルダを実環境値に置き換えてください。
 
 - `envs/shared/backend.hcl`
 - `envs/dev/backend.hcl`
 - `envs/prod/backend.hcl`
 
-Required fields:
+必須項目:
 
 - `bucket`
 - `dynamodb_table`
 
-## 2) Create tfvars from examples
+## 2) tfvars の作成
 
-For each environment:
+各環境で以下を実施します。
 
-1. Copy `terraform.tfvars.example` to `terraform.tfvars`
-2. Set `root_domain` and any environment-specific values
-3. If you already have a hosted zone, set:
+1. `terraform.tfvars.example` を `terraform.tfvars` としてコピー
+2. `root_domain` など環境固有の値を設定
+3. 既存のHosted Zoneを使う場合は以下を設定
    - `create_hosted_zone = false`
    - `existing_hosted_zone_id = "ZXXXXXXXXXXXX"`
-4. In `envs/dev` and `envs/prod`, set:
+4. `envs/dev` と `envs/prod` では以下も設定
    - `shared_state_bucket`
-   - `shared_state_key` (default: `enm/shared/terraform.tfstate`)
+   - `shared_state_key`（デフォルト: `enm/shared/terraform.tfstate`）
    - `shared_state_region`
 
-`envs/dev` and `envs/prod` read `envs/shared` outputs via `terraform_remote_state`.
-Apply `shared` first.
+`envs/dev` と `envs/prod` は `terraform_remote_state` で `envs/shared` の出力を参照します。  
+必ず `shared` を先に適用してください。
 
-Runtime resources in `envs/dev` and `envs/prod`:
+## 実行系リソース（`dev` / `prod`）
 
 - ALB
-- ECS (Fargate)
+- ECS（Fargate）
 - RDS PostgreSQL
 
-These are controlled by `runtime_enabled`.
-Set `runtime_enabled = false` during development to avoid runtime charges.
-Switch to `true` only when starting actual release operation.
+上記は `runtime_enabled` で作成を制御します。  
+開発中の課金を抑えるため、通常は `runtime_enabled = false`。  
+実際に公開運用を開始する時点で `true` に切り替えます。
 
-ECS image selection:
+### ECSイメージ指定
 
-- `use_shared_ecr_image = true`: uses `shared` output `repository_urls["backend"]` + `api_image_tag`
-- `use_shared_ecr_image = false`: uses `api_container_image` directly
+- `use_shared_ecr_image = true` の場合:
+  - `shared` の出力 `repository_urls["backend"]` と `api_image_tag` を組み合わせて使用
+- `use_shared_ecr_image = false` の場合:
+  - `api_container_image` をそのまま使用
 
-ECS container runtime settings:
+### ECSコンテナ実行設定
 
-- `api_environment_variables`: additional plain environment variables
-- `api_secret_arns`: additional secret refs (`name => secret ARN`)
-- When `runtime_enabled=true`, `DB_HOST` and `DB_MASTER_SECRET_ARN` are auto-injected
+- `api_environment_variables`: 追加の平文環境変数
+- `api_secret_arns`: 追加のシークレット参照（`name => secret ARN`）
+- `runtime_enabled=true` 時は `DB_HOST` と `DB_MASTER_SECRET_ARN` を自動注入
 
-Always-on resources in `envs/dev` and `envs/prod`:
+## 常時作成リソース（`dev` / `prod`）
 
-- App S3 bucket
-- Cognito user pool + app client
+- App用S3バケット
+- Cognito User Pool + App Client
 
-Optional resources in `envs/dev` and `envs/prod`:
+## 任意作成リソース（`dev` / `prod`）
 
-- CloudFront (`edge_enabled`)
-- WAF for ALB (`edge_enabled && runtime_enabled`)
-- CloudWatch alarms (`monitoring_enabled && runtime_enabled`)
-- Route53 alias records (`create_dns_records`)
+- CloudFront（`edge_enabled`）
+- ALB向けWAF（`edge_enabled && runtime_enabled`）
+- CloudWatchアラーム（`monitoring_enabled && runtime_enabled`）
+- Route53 Aliasレコード（`create_dns_records`）
 
-Current WAF module scope is `REGIONAL` and associates to ALB.
+現在のWAFは `REGIONAL` スコープで ALB に関連付ける設計です。
 
-For CloudFront custom domain, also set:
+### CloudFrontを独自ドメインで使う場合
 
 - `cloudfront_aliases`
-- `cloudfront_acm_certificate_arn` (must be in `us-east-1`)
+- `cloudfront_acm_certificate_arn`（`us-east-1` の証明書が必要）
 
-For DNS records, set:
+### DNSレコードを作成する場合
 
 - `create_dns_records = true`
-- `api_record_name` (for example `api-dev` / `api`)
-- `cdn_record_name` (for example `cdn-dev` / `cdn`)
+- `api_record_name`（例: `api-dev` / `api`）
+- `cdn_record_name`（例: `cdn-dev` / `cdn`）
 
-## 3) Apply order
+## 3) 適用順序
 
-Apply in this order:
+適用順は以下です。
 
 1. `shared`
 2. `dev`
 3. `prod`
 
-Example (`shared`):
+例（`shared`）:
 
 ```powershell
 cd infra/terraform/envs/shared
@@ -120,4 +122,4 @@ terraform plan -var-file=terraform.tfvars
 terraform apply -var-file=terraform.tfvars
 ```
 
-Use the same sequence in `envs/dev` and `envs/prod`.
+`dev` / `prod` も同じ手順で実行してください。

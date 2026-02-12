@@ -1,5 +1,5 @@
-bucket         = "REPLACE_ME_TFSTATE_BUCKET"
+﻿bucket         = "enmusiquer-tfstate-785311025023-apne1"
 key            = "enm/prod/terraform.tfstate"
 region         = "ap-northeast-1"
-dynamodb_table = "REPLACE_ME_TF_LOCKS"
+dynamodb_table = "enmusiquer-terraform-locks"
 encrypt        = true
