@@ -222,3 +222,22 @@ powershell -ExecutionPolicy Bypass -File scripts/tf-setup.ps1 -RunDoctor
 ```
 補足:
 - `-SkipHooks`: `git config core.hooksPath` が権限都合で実行できない環境向け
+## 安全 apply 実行
+
+`apply` の前に `secret guard` と `plan` を必ず通すためのラッパーです。
+
+```powershell
+# dev apply（plan確認込み）
+powershell -ExecutionPolicy Bypass -File scripts/tf-apply-safe.ps1 -Environment dev
+
+# prod apply（明示トークン必須）
+powershell -ExecutionPolicy Bypass -File scripts/tf-apply-safe.ps1 -Environment prod -ProdApproveToken apply-prod
+
+# auto-approve で実行
+powershell -ExecutionPolicy Bypass -File scripts/tf-apply-safe.ps1 -Environment dev -AutoApprove
+```
+
+オプション:
+- `-SkipPlan`: 事前 `plan` を省略
+- `-SkipSecretCheck`: 事前 `secret guard` を省略（通常は未指定推奨）
+- `-ReconfigureInit`: `init -reconfigure` を実行

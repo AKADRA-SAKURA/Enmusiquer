@@ -97,3 +97,11 @@ powershell -ExecutionPolicy Bypass -File scripts/tf-setup.ps1 -RunDoctor
 
 その後、`tf-plan-all.ps1` で shared/dev/prod の順に `plan` を確認してください。
 hooks設定だけ後回しにする場合は `-SkipHooks` を付けて実行できます。
+## apply の推奨実行方法
+
+`apply` は直接 `tf.ps1` ではなく、原則 `tf-apply-safe.ps1` を使用してください。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/tf-apply-safe.ps1 -Environment dev
+powershell -ExecutionPolicy Bypass -File scripts/tf-apply-safe.ps1 -Environment prod -ProdApproveToken apply-prod
+```
