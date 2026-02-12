@@ -261,3 +261,23 @@ powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task apply-safe -En
 # raw run (tf.ps1 相当)
 powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task run -Environment dev -RunCommand plan
 ```
+## ECSへ実バックエンドイメージを反映する手順
+
+1. GitHub Actions `backend-image` で `enm/backend:<tag>` を ECR へ push
+2. `infra/terraform/envs/dev/terraform.tfvars`（必要なら `prod` も）で以下を確認
+   - `use_shared_ecr_image = true`
+   - `api_image_tag = "<pushしたtag>"`
+   - `runtime_enabled = true`
+3. Terraform反映
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task plan-all -Scope shared-dev
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task apply-safe -Environment dev
+```
+
+prodへ反映する場合:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task plan-all -Scope all
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task apply-safe -Environment prod -ProdApproveToken apply-prod
+```
