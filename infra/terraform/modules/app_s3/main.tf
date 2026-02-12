@@ -8,7 +8,65 @@ variable "environment" {
   description = "Environment name."
 }
 
+variable "force_destroy" {
+  type        = bool
+  description = "Allow bucket destroy even when objects remain."
+  default     = false
+}
+
+variable "versioning_enabled" {
+  type        = bool
+  description = "Enable S3 bucket versioning."
+  default     = true
+}
+
+resource "aws_s3_bucket" "this" {
+  bucket        = "${var.name_prefix}-assets"
+  force_destroy = var.force_destroy
+
+  tags = {
+    Name = "${var.name_prefix}-assets"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "this" {
+  bucket = aws_s3_bucket.this.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "this" {
+  bucket = aws_s3_bucket.this.id
+
+  versioning_configuration {
+    status = var.versioning_enabled ? "Enabled" : "Suspended"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
+  bucket = aws_s3_bucket.this.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
 output "bucket_name" {
-  value       = "${var.name_prefix}-assets"
-  description = "Placeholder app S3 bucket name."
+  value       = aws_s3_bucket.this.id
+  description = "App S3 bucket name."
+}
+
+output "bucket_arn" {
+  value       = aws_s3_bucket.this.arn
+  description = "App S3 bucket ARN."
+}
+
+output "bucket_regional_domain_name" {
+  value       = aws_s3_bucket.this.bucket_regional_domain_name
+  description = "App S3 bucket regional domain name."
 }

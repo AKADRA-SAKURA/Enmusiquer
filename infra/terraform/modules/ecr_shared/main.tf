@@ -3,12 +3,67 @@ variable "repository_prefix" {
   description = "Prefix for ECR repositories."
 }
 
-variable "environment" {
-  type        = string
-  description = "Environment name."
+variable "repository_names" {
+  type        = list(string)
+  description = "List of logical repository names."
+}
+
+variable "enable_lifecycle_policy" {
+  type        = bool
+  description = "Enable lifecycle policy for repositories."
+  default     = true
+}
+
+variable "max_image_count" {
+  type        = number
+  description = "Maximum number of tagged images to keep per repository."
+  default     = 50
+}
+
+resource "aws_ecr_repository" "this" {
+  for_each = toset(var.repository_names)
+
+  name                 = "${var.repository_prefix}/${each.value}"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+}
+
+resource "aws_ecr_lifecycle_policy" "this" {
+  for_each = var.enable_lifecycle_policy ? aws_ecr_repository.this : {}
+
+  repository = each.value.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last ${var.max_image_count} images"
+        selection = {
+          tagStatus     = "any"
+          countType     = "imageCountMoreThan"
+          countNumber   = var.max_image_count
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
 }
 
 output "repository_namespace" {
-  value       = "${var.repository_prefix}-${var.environment}"
-  description = "Placeholder ECR repository namespace."
+  value       = var.repository_prefix
+  description = "Shared ECR repository prefix."
+}
+
+output "repository_urls" {
+  value       = { for name, repo in aws_ecr_repository.this : name => repo.repository_url }
+  description = "Repository URL by logical name."
 }

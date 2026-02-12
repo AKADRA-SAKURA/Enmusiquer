@@ -1,7 +1,8 @@
-from sqlalchemy import BigInteger, Enum, ForeignKey, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.db.types import DBInt
 from app.models.mixins import TimestampMixin
 
 
@@ -14,14 +15,14 @@ class UserTrackPreference(TimestampMixin, Base):
         UniqueConstraint("user_id", "track_id", name="uq_user_track_preferences_user_track"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(DBInt, primary_key=True)
     user_id: Mapped[int] = mapped_column(
-        BigInteger,
+        DBInt,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
     track_id: Mapped[int] = mapped_column(
-        BigInteger,
+        DBInt,
         ForeignKey("tracks.id", ondelete="CASCADE"),
         nullable=False,
     )

@@ -1,2 +1,33 @@
 aws_region  = "ap-northeast-1"
 root_domain = "example.com"
+
+shared_state_bucket = "your-terraform-state-bucket"
+shared_state_key    = "enm/shared/terraform.tfstate"
+shared_state_region = "ap-northeast-1"
+
+runtime_enabled      = false
+api_container_image  = "public.ecr.aws/docker/library/nginx:stable-alpine"
+use_shared_ecr_image = true
+api_image_tag        = "latest"
+api_desired_count    = 1
+api_environment_variables = {}
+api_secret_arns           = {}
+api_container_port   = 80
+db_instance_class    = "db.t3.micro"
+db_multi_az          = false
+db_backup_retention_period = 1
+db_deletion_protection     = false
+
+edge_enabled                    = false
+waf_rate_limit                  = 2000
+cloudfront_aliases              = []
+cloudfront_acm_certificate_arn  = null
+
+monitoring_enabled      = false
+monitoring_alarm_actions = []
+discord_alert_enabled    = false
+discord_webhook_url      = null
+
+create_dns_records = false
+api_record_name    = "api-dev"
+cdn_record_name    = "cdn-dev"
