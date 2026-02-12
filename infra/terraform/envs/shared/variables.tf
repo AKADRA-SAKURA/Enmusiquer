@@ -45,6 +45,18 @@ variable "ecr_repository_names" {
   default     = ["backend", "frontend"]
 }
 
+variable "ecr_enable_lifecycle_policy" {
+  type        = bool
+  description = "Enable lifecycle policy for shared ECR repositories."
+  default     = true
+}
+
+variable "ecr_max_image_count" {
+  type        = number
+  description = "Maximum number of images to keep in each ECR repository."
+  default     = 50
+}
+
 variable "create_hosted_zone" {
   type        = bool
   description = "Create hosted zone in Route53 when true."

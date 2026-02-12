@@ -3,6 +3,11 @@ output "ecs_service_name" {
   description = "ECS service name for dev."
 }
 
+output "api_container_image" {
+  value       = local.api_image
+  description = "Selected container image for dev ECS service."
+}
+
 output "db_identifier" {
   value       = module.rds_postgres.db_identifier
   description = "RDS identifier for dev."

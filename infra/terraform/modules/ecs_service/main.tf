@@ -66,6 +66,34 @@ variable "desired_count" {
   default     = 1
 }
 
+variable "environment_variables" {
+  type        = map(string)
+  description = "Container environment variables."
+  default     = {}
+}
+
+variable "secrets" {
+  type        = map(string)
+  description = "Container secret references (name => secret ARN or SSM parameter ARN)."
+  default     = {}
+}
+
+locals {
+  container_environment = [
+    for key in sort(keys(var.environment_variables)) : {
+      name  = key
+      value = var.environment_variables[key]
+    }
+  ]
+
+  container_secrets = [
+    for key in sort(keys(var.secrets)) : {
+      name      = key
+      valueFrom = var.secrets[key]
+    }
+  ]
+}
+
 resource "aws_ecs_cluster" "this" {
   count = var.enabled ? 1 : 0
 
@@ -164,6 +192,8 @@ resource "aws_ecs_task_definition" "api" {
           protocol      = "tcp"
         }
       ]
+      environment = local.container_environment
+      secrets     = local.container_secrets
       logConfiguration = {
         logDriver = "awslogs"
         options = {

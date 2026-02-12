@@ -40,8 +40,19 @@ data "terraform_remote_state" "shared" {
 }
 
 locals {
-  api_fqdn = "${var.api_record_name}.${var.root_domain}"
-  cdn_fqdn = "${var.cdn_record_name}.${var.root_domain}"
+  api_fqdn            = "${var.api_record_name}.${var.root_domain}"
+  cdn_fqdn            = "${var.cdn_record_name}.${var.root_domain}"
+  shared_backend_repo = try(data.terraform_remote_state.shared.outputs.repository_urls["backend"], "")
+  api_image           = var.use_shared_ecr_image ? "${local.shared_backend_repo}:${var.api_image_tag}" : var.api_container_image
+  api_env             = merge(var.api_environment_variables, var.runtime_enabled ? { DB_HOST = module.rds_postgres.db_endpoint } : {})
+  api_secrets         = merge(var.api_secret_arns, var.runtime_enabled ? { DB_MASTER_SECRET_ARN = module.rds_postgres.db_secret_arn } : {})
+}
+
+check "shared_backend_repo_available" {
+  assert {
+    condition     = !var.use_shared_ecr_image || local.shared_backend_repo != ""
+    error_message = "use_shared_ecr_image=true requires shared output repository_urls[\"backend\"]."
+  }
 }
 
 module "ecs_service" {
@@ -53,9 +64,11 @@ module "ecs_service" {
   private_subnet_ids = data.terraform_remote_state.shared.outputs.private_subnet_ids
   target_group_arn   = module.alb.target_group_arn
   alb_security_group_id = module.alb.security_group_id
-  container_image    = var.api_container_image
+  container_image    = local.api_image
   container_port     = var.api_container_port
   desired_count      = var.api_desired_count
+  environment_variables = local.api_env
+  secrets               = local.api_secrets
 }
 
 module "rds_postgres" {

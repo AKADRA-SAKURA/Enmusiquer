@@ -12,6 +12,7 @@ This directory manages AWS infrastructure in one account with three Terraform en
 - Public/Private subnets (2 AZ)
 - Internet Gateway + route tables
 - ECR repositories (`enm/backend`, `enm/frontend` default)
+- ECR lifecycle policy (keep last 50 images by default)
 - Route53 hosted zone (`create_hosted_zone=true` by default)
 
 ## Prerequisites
@@ -19,6 +20,12 @@ This directory manages AWS infrastructure in one account with three Terraform en
 - Terraform `>= 1.6.0`
 - AWS credentials configured (`aws configure` or SSO)
 - Existing S3 bucket and DynamoDB table for remote state/lock
+
+## CI
+
+- GitHub Actions: `.github/workflows/terraform-validate.yml`
+- Runs `fmt -check` and `validate` for `envs/shared`, `envs/dev`, `envs/prod`
+- `init` uses `-backend=false` in CI
 
 ## 1) Configure backend files
 
@@ -59,6 +66,17 @@ Runtime resources in `envs/dev` and `envs/prod`:
 These are controlled by `runtime_enabled`.
 Set `runtime_enabled = false` during development to avoid runtime charges.
 Switch to `true` only when starting actual release operation.
+
+ECS image selection:
+
+- `use_shared_ecr_image = true`: uses `shared` output `repository_urls["backend"]` + `api_image_tag`
+- `use_shared_ecr_image = false`: uses `api_container_image` directly
+
+ECS container runtime settings:
+
+- `api_environment_variables`: additional plain environment variables
+- `api_secret_arns`: additional secret refs (`name => secret ARN`)
+- When `runtime_enabled=true`, `DB_HOST` and `DB_MASTER_SECRET_ARN` are auto-injected
 
 Always-on resources in `envs/dev` and `envs/prod`:
 

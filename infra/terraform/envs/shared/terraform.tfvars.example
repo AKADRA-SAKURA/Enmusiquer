@@ -19,6 +19,8 @@ private_subnet_cidrs = [
 
 ecr_repository_prefix = "enm"
 ecr_repository_names  = ["backend", "frontend"]
+ecr_enable_lifecycle_policy = true
+ecr_max_image_count         = 50
 
 create_hosted_zone      = true
 existing_hosted_zone_id = null

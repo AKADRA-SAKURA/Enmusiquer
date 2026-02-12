@@ -39,9 +39,11 @@ module "network_shared" {
 }
 
 module "ecr_shared" {
-  source            = "../../modules/ecr_shared"
-  repository_prefix = var.ecr_repository_prefix
-  repository_names  = var.ecr_repository_names
+  source                  = "../../modules/ecr_shared"
+  repository_prefix       = var.ecr_repository_prefix
+  repository_names        = var.ecr_repository_names
+  enable_lifecycle_policy = var.ecr_enable_lifecycle_policy
+  max_image_count         = var.ecr_max_image_count
 }
 
 module "route53_shared" {

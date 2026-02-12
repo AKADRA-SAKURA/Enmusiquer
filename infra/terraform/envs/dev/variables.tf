@@ -34,14 +34,38 @@ variable "runtime_enabled" {
 
 variable "api_container_image" {
   type        = string
-  description = "Container image URI for ECS service."
+  description = "Container image URI for ECS service (used when use_shared_ecr_image is false)."
   default     = "public.ecr.aws/docker/library/nginx:stable-alpine"
+}
+
+variable "use_shared_ecr_image" {
+  type        = bool
+  description = "Use shared ECR backend repository URL for ECS image."
+  default     = true
+}
+
+variable "api_image_tag" {
+  type        = string
+  description = "Image tag used with shared ECR backend repository."
+  default     = "latest"
 }
 
 variable "api_desired_count" {
   type        = number
   description = "Desired task count for ECS service."
   default     = 1
+}
+
+variable "api_environment_variables" {
+  type        = map(string)
+  description = "Additional environment variables for ECS container."
+  default     = {}
+}
+
+variable "api_secret_arns" {
+  type        = map(string)
+  description = "Additional ECS container secrets (name => secret ARN)."
+  default     = {}
 }
 
 variable "api_container_port" {
