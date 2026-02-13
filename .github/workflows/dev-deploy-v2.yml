@@ -5,22 +5,204 @@ on:
     inputs:
       aws_region:
         description: "AWS region"
-        required: true
+        required: false
         default: "ap-northeast-1"
       image_tag:
         description: "Backend image tag"
-        required: true
+        required: false
         default: "manual"
 
 permissions:
+  id-token: write
   contents: read
 
+concurrency:
+  group: dev-deploy-v2
+  cancel-in-progress: false
+
 jobs:
-  dispatch-smoke:
+  deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Print dispatch inputs
+      - name: Guard branch
+        if: ${{ github.ref_name != 'dev' }}
         run: |
-          echo "workflow_dispatch accepted"
-          echo "aws_region=${{ github.event.inputs.aws_region }}"
-          echo "image_tag=${{ github.event.inputs.image_tag }}"
+          echo "[ERROR] run this workflow on dev branch."
+          echo "current ref: ${{ github.ref_name }}"
+          exit 1
+
+      - name: Resolve config
+        id: cfg
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          AWS_REGION_INPUT="${{ github.event.inputs.aws_region }}"
+          IMAGE_TAG_INPUT="${{ github.event.inputs.image_tag }}"
+          ROLE_ARN="${{ vars.AWS_ROLE_TO_ASSUME_DEV_DEPLOY }}"
+          STATE_BUCKET="${{ vars.TF_STATE_BUCKET }}"
+          ROOT_DOMAIN="${{ vars.ROOT_DOMAIN }}"
+          API_DOMAIN="${{ vars.DEV_API_DOMAIN }}"
+
+          if [ -z "$API_DOMAIN" ] && [ -n "$ROOT_DOMAIN" ]; then
+            API_DOMAIN="api-dev.${ROOT_DOMAIN}"
+          fi
+
+          for kv in \
+            "AWS_REGION_INPUT:$AWS_REGION_INPUT" \
+            "IMAGE_TAG_INPUT:$IMAGE_TAG_INPUT" \
+            "ROLE_ARN:$ROLE_ARN" \
+            "STATE_BUCKET:$STATE_BUCKET" \
+            "ROOT_DOMAIN:$ROOT_DOMAIN"
+          do
+            key="${kv%%:*}"
+            val="${kv#*:}"
+            if [ -z "$val" ]; then
+              echo "[ERROR] missing required value: $key"
+              exit 1
+            fi
+          done
+
+          echo "aws_region=$AWS_REGION_INPUT" >> "$GITHUB_OUTPUT"
+          echo "image_tag=$IMAGE_TAG_INPUT" >> "$GITHUB_OUTPUT"
+          echo "aws_role_to_assume=$ROLE_ARN" >> "$GITHUB_OUTPUT"
+          echo "tf_state_bucket=$STATE_BUCKET" >> "$GITHUB_OUTPUT"
+          echo "root_domain=$ROOT_DOMAIN" >> "$GITHUB_OUTPUT"
+          echo "api_domain=$API_DOMAIN" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ steps.cfg.outputs.aws_role_to_assume }}
+          aws-region: ${{ steps.cfg.outputs.aws_region }}
+
+      - name: Terraform init (dev)
+        run: |
+          terraform -chdir=infra/terraform/envs/dev init -reconfigure \
+            -backend-config="bucket=${{ steps.cfg.outputs.tf_state_bucket }}" \
+            -backend-config="key=enm/dev/terraform.tfstate" \
+            -backend-config="region=${{ steps.cfg.outputs.aws_region }}" \
+            -backend-config="use_lockfile=true" \
+            -backend-config="encrypt=true" \
+            -input=false
+
+      - name: Terraform plan (dev)
+        run: |
+          terraform -chdir=infra/terraform/envs/dev plan \
+            -input=false \
+            -out=tfplan \
+            -var "root_domain=${{ steps.cfg.outputs.root_domain }}" \
+            -var "shared_state_bucket=${{ steps.cfg.outputs.tf_state_bucket }}" \
+            -var "shared_state_key=enm/shared/terraform.tfstate" \
+            -var "shared_state_region=${{ steps.cfg.outputs.aws_region }}" \
+            -var "runtime_enabled=true" \
+            -var "create_dns_records=true" \
+            -var "api_image_tag=${{ steps.cfg.outputs.image_tag }}"
+
+      - name: Terraform apply (dev)
+        run: terraform -chdir=infra/terraform/envs/dev apply -input=false -auto-approve tfplan
+
+      - name: Wait for ECS service stable
+        run: |
+          aws ecs wait services-stable \
+            --cluster "enm-dev-cluster" \
+            --services "enm-dev-api" \
+            --region "${{ steps.cfg.outputs.aws_region }}"
+
+      - name: Health check (ALB and API domain)
+        shell: bash
+        env:
+          API_DOMAIN: ${{ steps.cfg.outputs.api_domain }}
+        run: |
+          set -euo pipefail
+
+          ALB_DNS="$(terraform -chdir=infra/terraform/envs/dev output -raw alb_dns_name)"
+          if [ -z "$ALB_DNS" ]; then
+            echo "[ERROR] alb_dns_name is empty."
+            exit 1
+          fi
+
+          check_with_retry() {
+            local name="$1"
+            local url="$2"
+            local attempts=20
+            local sleep_sec=15
+
+            for ((i=1; i<=attempts; i++)); do
+              echo "[$name] attempt $i/$attempts: $url"
+              if body="$(curl -fsS --max-time 20 "$url")"; then
+                echo "$body"
+                if [[ "$body" == *'"status":"ok"'* ]]; then
+                  echo "[OK] $name"
+                  return 0
+                fi
+              fi
+              sleep "$sleep_sec"
+            done
+
+            echo "[ERROR] $name health check failed: $url"
+            return 1
+          }
+
+          check_with_retry "ALB" "http://${ALB_DNS}/health"
+          check_with_retry "API-Domain" "http://${API_DOMAIN}/health"
+
+      - name: Show ECS recent events on failure
+        if: failure()
+        run: |
+          aws ecs describe-services \
+            --cluster "enm-dev-cluster" \
+            --services "enm-dev-api" \
+            --region "${{ steps.cfg.outputs.aws_region }}" \
+            --query "services[0].events[0:15].[createdAt,message]" \
+            --output table || true
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "image_tag: ${{ steps.cfg.outputs.image_tag }}"
+          echo "aws_region: ${{ steps.cfg.outputs.aws_region }}"
+          echo "api_domain: ${{ steps.cfg.outputs.api_domain }}"
+
+      - name: Notify Discord (success)
+        if: ${{ success() && secrets.DEV_DEPLOY_DISCORD_WEBHOOK != '' }}
+        shell: bash
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DEV_DEPLOY_DISCORD_WEBHOOK }}
+        run: |
+          set -euo pipefail
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MSG="[SUCCESS] dev-deploy-v2 success
+          repository: ${{ github.repository }}
+          branch: ${{ github.ref_name }}
+          image_tag: ${{ steps.cfg.outputs.image_tag }}
+          run: ${RUN_URL}"
+
+          jq -n --arg content "$MSG" '{content: $content}' | \
+            curl -fsS -X POST -H "Content-Type: application/json" --data @- "$DISCORD_WEBHOOK"
+
+      - name: Notify Discord (failure)
+        if: ${{ failure() && secrets.DEV_DEPLOY_DISCORD_WEBHOOK != '' }}
+        shell: bash
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DEV_DEPLOY_DISCORD_WEBHOOK }}
+        run: |
+          set -euo pipefail
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MSG="[FAILED] dev-deploy-v2 failed
+          repository: ${{ github.repository }}
+          branch: ${{ github.ref_name }}
+          image_tag: ${{ steps.cfg.outputs.image_tag }}
+          run: ${RUN_URL}"
+
+          jq -n --arg content "$MSG" '{content: $content}' | \
+            curl -fsS -X POST -H "Content-Type: application/json" --data @- "$DISCORD_WEBHOOK"
