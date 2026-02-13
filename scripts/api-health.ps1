@@ -121,7 +121,7 @@ if ([string]::IsNullOrWhiteSpace($Region)) {
 $runtimeEnabled = Get-TfvarsBool -FilePath $tfvarsPath -VariableName "runtime_enabled"
 if ($runtimeEnabled -eq $false) {
   Write-Host "==> API Health ($Environment)" -ForegroundColor Cyan
-  Write-Host "[INFO] runtime_enabled=false のため ALB/API/ECS チェックをスキップします。" -ForegroundColor Yellow
+  Write-Host "[INFO] runtime_enabled=false; skip ALB/API/ECS checks." -ForegroundColor Yellow
   exit 0
 }
 
