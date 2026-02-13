@@ -49,16 +49,6 @@ on:
         required: true
         default: "api-dev.enmusiquer.com"
         type: string
-      ecs_cluster_name:
-        description: "ECS cluster name for dev"
-        required: true
-        default: "enm-dev-cluster"
-        type: string
-      ecs_service_name:
-        description: "ECS service name for dev"
-        required: true
-        default: "enm-dev-api"
-        type: string
 
 permissions:
   id-token: write
@@ -131,8 +121,8 @@ jobs:
         if: ${{ inputs.run_apply && inputs.run_health_check }}
         run: |
           aws ecs wait services-stable \
-            --cluster "${{ inputs.ecs_cluster_name }}" \
-            --services "${{ inputs.ecs_service_name }}" \
+            --cluster "enm-dev-cluster" \
+            --services "enm-dev-api" \
             --region "${{ inputs.aws_region }}"
 
       - name: Health check (ALB and API domain)
@@ -179,8 +169,8 @@ jobs:
         if: failure()
         run: |
           aws ecs describe-services \
-            --cluster "${{ inputs.ecs_cluster_name }}" \
-            --services "${{ inputs.ecs_service_name }}" \
+            --cluster "enm-dev-cluster" \
+            --services "enm-dev-api" \
             --region "${{ inputs.aws_region }}" \
             --query "services[0].events[0:15].[createdAt,message]" \
             --output table || true
