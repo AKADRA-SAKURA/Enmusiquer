@@ -294,3 +294,19 @@ powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task api-health -En
 
 補足:
 - `terraform.tfvars` の `runtime_enabled=false` の環境では、`api-health` は実行系未作成としてチェックをスキップします。
+
+## GitHub Actions で dev デプロイ
+
+- Workflow: `.github/workflows/dev-deploy.yml`
+- 実行方法: Actions から `dev-deploy` を `workflow_dispatch` で実行
+- 主要入力:
+  - `aws_role_to_assume`: Terraform apply 用の OIDC ロール ARN
+  - `tf_state_bucket`: Terraform state の S3 バケット名
+  - `root_domain`: ルートドメイン（例: `enmusiquer.com`）
+  - `image_tag`: デプロイする backend イメージタグ
+
+処理内容:
+1. `infra/terraform/envs/dev` で `init -> plan -> apply`
+2. ECS service stable 待機
+3. `ALB / APIドメイン` の `/health` をリトライ付きで確認
+4. 失敗時に ECS events を表示
