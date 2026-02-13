@@ -291,3 +291,6 @@ powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task api-health -En
 # prod で ECS イベントを常に表示したい場合
 powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task api-health -Environment prod -ShowEcsEvents
 ```
+
+補足:
+- `terraform.tfvars` の `runtime_enabled=false` の環境では、`api-health` は実行系未作成としてチェックをスキップします。

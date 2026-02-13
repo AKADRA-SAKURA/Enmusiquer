@@ -1,0 +1,170 @@
+name: dev-health-check
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region"
+        required: true
+        default: "ap-northeast-1"
+        type: string
+      aws_role_to_assume:
+        description: "IAM role ARN for GitHub OIDC"
+        required: true
+        type: string
+      api_domain:
+        description: "API domain for dev health check"
+        required: true
+        default: "api-dev.enmusiquer.com"
+        type: string
+      alb_name:
+        description: "ALB name for dev"
+        required: true
+        default: "enm-dev-alb"
+        type: string
+      ecs_cluster_name:
+        description: "ECS cluster name for dev"
+        required: true
+        default: "enm-dev-cluster"
+        type: string
+      ecs_service_name:
+        description: "ECS service name for dev"
+        required: true
+        default: "enm-dev-api"
+        type: string
+  workflow_run:
+    workflows: ["backend-image"]
+    types:
+      - completed
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  health-check:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'dev') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve parameters
+        id: params
+        shell: bash
+        env:
+          INPUT_AWS_REGION: ${{ inputs.aws_region }}
+          INPUT_AWS_ROLE: ${{ inputs.aws_role_to_assume }}
+          INPUT_API_DOMAIN: ${{ inputs.api_domain }}
+          INPUT_ALB_NAME: ${{ inputs.alb_name }}
+          INPUT_ECS_CLUSTER_NAME: ${{ inputs.ecs_cluster_name }}
+          INPUT_ECS_SERVICE_NAME: ${{ inputs.ecs_service_name }}
+          VAR_AWS_REGION: ${{ vars.AWS_REGION }}
+          VAR_AWS_ROLE: ${{ vars.AWS_ROLE_TO_ASSUME_DEV_HEALTH }}
+          VAR_API_DOMAIN: ${{ vars.DEV_API_DOMAIN }}
+          VAR_ALB_NAME: ${{ vars.DEV_ALB_NAME }}
+          VAR_ECS_CLUSTER_NAME: ${{ vars.DEV_ECS_CLUSTER_NAME }}
+          VAR_ECS_SERVICE_NAME: ${{ vars.DEV_ECS_SERVICE_NAME }}
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            AWS_REGION="$INPUT_AWS_REGION"
+            AWS_ROLE="$INPUT_AWS_ROLE"
+            API_DOMAIN="$INPUT_API_DOMAIN"
+            ALB_NAME="$INPUT_ALB_NAME"
+            ECS_CLUSTER_NAME="$INPUT_ECS_CLUSTER_NAME"
+            ECS_SERVICE_NAME="$INPUT_ECS_SERVICE_NAME"
+          else
+            AWS_REGION="${VAR_AWS_REGION:-ap-northeast-1}"
+            AWS_ROLE="${VAR_AWS_ROLE:-}"
+            API_DOMAIN="${VAR_API_DOMAIN:-api-dev.enmusiquer.com}"
+            ALB_NAME="${VAR_ALB_NAME:-enm-dev-alb}"
+            ECS_CLUSTER_NAME="${VAR_ECS_CLUSTER_NAME:-enm-dev-cluster}"
+            ECS_SERVICE_NAME="${VAR_ECS_SERVICE_NAME:-enm-dev-api}"
+          fi
+
+          if [ -z "$AWS_ROLE" ]; then
+            echo "[ERROR] AWS role is empty."
+            echo "workflow_dispatch: set input aws_role_to_assume"
+            echo "workflow_run: set repository variable AWS_ROLE_TO_ASSUME_DEV_HEALTH"
+            exit 1
+          fi
+
+          echo "aws_region=$AWS_REGION" >> "$GITHUB_OUTPUT"
+          echo "aws_role=$AWS_ROLE" >> "$GITHUB_OUTPUT"
+          echo "api_domain=$API_DOMAIN" >> "$GITHUB_OUTPUT"
+          echo "alb_name=$ALB_NAME" >> "$GITHUB_OUTPUT"
+          echo "ecs_cluster_name=$ECS_CLUSTER_NAME" >> "$GITHUB_OUTPUT"
+          echo "ecs_service_name=$ECS_SERVICE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ steps.params.outputs.aws_role }}
+          aws-region: ${{ steps.params.outputs.aws_region }}
+
+      - name: Resolve ALB DNS
+        id: alb
+        shell: bash
+        env:
+          AWS_REGION: ${{ steps.params.outputs.aws_region }}
+          ALB_NAME: ${{ steps.params.outputs.alb_name }}
+        run: |
+          set -euo pipefail
+          ALB_DNS="$(aws elbv2 describe-load-balancers --region "$AWS_REGION" --names "$ALB_NAME" --query 'LoadBalancers[0].DNSName' --output text)"
+          if [ -z "$ALB_DNS" ] || [ "$ALB_DNS" = "None" ]; then
+            echo "[ERROR] Failed to resolve ALB DNS for $ALB_NAME"
+            exit 1
+          fi
+          echo "alb_dns=$ALB_DNS" >> "$GITHUB_OUTPUT"
+
+      - name: API health check
+        id: health
+        shell: bash
+        env:
+          ALB_DNS: ${{ steps.alb.outputs.alb_dns }}
+          API_DOMAIN: ${{ steps.params.outputs.api_domain }}
+        run: |
+          set -euo pipefail
+
+          check_url() {
+            local url="$1"
+            local body
+            body="$(curl -fsS --max-time 20 "$url")"
+            echo "$body"
+            if [[ "$body" != *'"status":"ok"'* ]]; then
+              echo "[ERROR] health response is not ok: $url"
+              return 1
+            fi
+          }
+
+          echo "Checking ALB endpoint..."
+          check_url "http://${ALB_DNS}/health"
+
+          echo "Checking API domain endpoint..."
+          check_url "http://${API_DOMAIN}/health"
+
+      - name: Show ECS recent events on failure
+        if: failure()
+        shell: bash
+        env:
+          AWS_REGION: ${{ steps.params.outputs.aws_region }}
+          ECS_CLUSTER_NAME: ${{ steps.params.outputs.ecs_cluster_name }}
+          ECS_SERVICE_NAME: ${{ steps.params.outputs.ecs_service_name }}
+        run: |
+          set -euo pipefail
+          aws ecs describe-services \
+            --cluster "$ECS_CLUSTER_NAME" \
+            --services "$ECS_SERVICE_NAME" \
+            --region "$AWS_REGION" \
+            --query "services[0].events[0:15].[createdAt,message]" \
+            --output table || true
+
+      - name: Summary
+        if: always()
+        shell: bash
+        env:
+          API_DOMAIN: ${{ steps.params.outputs.api_domain }}
+          ALB_DNS: ${{ steps.alb.outputs.alb_dns }}
+        run: |
+          echo "ALB: http://${ALB_DNS}/health"
+          echo "API: http://${API_DOMAIN}/health"

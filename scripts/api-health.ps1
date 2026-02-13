@@ -10,6 +10,33 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Get-TfvarsBool {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$FilePath,
+    [Parameter(Mandatory = $true)]
+    [string]$VariableName
+  )
+
+  if (-not (Test-Path $FilePath)) {
+    return $null
+  }
+
+  $lines = Get-Content -Path $FilePath -ErrorAction SilentlyContinue
+  foreach ($line in $lines) {
+    $trimmed = $line.Trim()
+    if ($trimmed -eq "" -or $trimmed.StartsWith("#")) {
+      continue
+    }
+
+    if ($trimmed -match ("^{0}\s*=\s*(true|false)\s*$" -f [regex]::Escape($VariableName))) {
+      return [System.Convert]::ToBoolean($Matches[1])
+    }
+  }
+
+  return $null
+}
+
 function Get-TerraformOutputRaw {
   param(
     [Parameter(Mandatory = $true)]
@@ -68,6 +95,7 @@ function Invoke-UrlCheck {
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $envDir = Join-Path $repoRoot "infra/terraform/envs/$Environment"
+$tfvarsPath = Join-Path $envDir "terraform.tfvars"
 
 if (-not (Get-Command terraform -ErrorAction SilentlyContinue)) {
   throw "terraform command not found in PATH."
@@ -88,6 +116,13 @@ if ([string]::IsNullOrWhiteSpace($Region)) {
   else {
     $Region = "ap-northeast-1"
   }
+}
+
+$runtimeEnabled = Get-TfvarsBool -FilePath $tfvarsPath -VariableName "runtime_enabled"
+if ($runtimeEnabled -eq $false) {
+  Write-Host "==> API Health ($Environment)" -ForegroundColor Cyan
+  Write-Host "[INFO] runtime_enabled=false のため ALB/API/ECS チェックをスキップします。" -ForegroundColor Yellow
+  exit 0
 }
 
 $albDns = Get-TerraformOutputRaw -Directory $envDir -Name "alb_dns_name"
