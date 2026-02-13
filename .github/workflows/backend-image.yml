@@ -141,7 +141,7 @@ jobs:
             await github.rest.actions.createWorkflowDispatch({
               owner,
               repo,
-              workflow_id: "dev-deploy.yml",
+              workflow_id: "dev-deploy-v2.yml",
               ref,
               inputs,
             });
