@@ -174,12 +174,17 @@ jobs:
           echo "api_domain: ${{ steps.cfg.outputs.api_domain }}"
 
       - name: Notify Discord (success)
-        if: ${{ success() && secrets.DEV_DEPLOY_DISCORD_WEBHOOK != '' }}
+        if: success()
         shell: bash
         env:
           DISCORD_WEBHOOK: ${{ secrets.DEV_DEPLOY_DISCORD_WEBHOOK }}
         run: |
           set -euo pipefail
+          if [ -z "${DISCORD_WEBHOOK:-}" ]; then
+            echo "[INFO] DEV_DEPLOY_DISCORD_WEBHOOK is empty; skip notify."
+            exit 0
+          fi
+
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           MSG="[SUCCESS] dev-deploy-v2 success
           repository: ${{ github.repository }}
@@ -191,12 +196,17 @@ jobs:
             curl -fsS -X POST -H "Content-Type: application/json" --data @- "$DISCORD_WEBHOOK"
 
       - name: Notify Discord (failure)
-        if: ${{ failure() && secrets.DEV_DEPLOY_DISCORD_WEBHOOK != '' }}
+        if: failure()
         shell: bash
         env:
           DISCORD_WEBHOOK: ${{ secrets.DEV_DEPLOY_DISCORD_WEBHOOK }}
         run: |
           set -euo pipefail
+          if [ -z "${DISCORD_WEBHOOK:-}" ]; then
+            echo "[INFO] DEV_DEPLOY_DISCORD_WEBHOOK is empty; skip notify."
+            exit 0
+          fi
+
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           MSG="[FAILED] dev-deploy-v2 failed
           repository: ${{ github.repository }}
