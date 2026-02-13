@@ -38,6 +38,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          trim_value() {
+            local v="$1"
+            v="$(echo "$v" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+            echo "$v"
+          }
+
           normalize_host() {
             local v="$1"
             v="${v#http://}"
@@ -47,12 +53,12 @@ jobs:
             echo "$v"
           }
 
-          AWS_REGION_INPUT="${{ github.event.inputs.aws_region }}"
-          IMAGE_TAG_INPUT="${{ github.event.inputs.image_tag }}"
-          ROLE_ARN="${{ vars.AWS_ROLE_TO_ASSUME_DEV_DEPLOY }}"
-          STATE_BUCKET="${{ vars.TF_STATE_BUCKET }}"
-          ROOT_DOMAIN_RAW="${{ vars.ROOT_DOMAIN }}"
-          API_DOMAIN_RAW="${{ vars.DEV_API_DOMAIN }}"
+          AWS_REGION_INPUT="$(trim_value "${{ github.event.inputs.aws_region }}")"
+          IMAGE_TAG_INPUT="$(trim_value "${{ github.event.inputs.image_tag }}")"
+          ROLE_ARN="$(trim_value "${{ vars.AWS_ROLE_TO_ASSUME_DEV_DEPLOY }}")"
+          STATE_BUCKET="$(trim_value "${{ vars.TF_STATE_BUCKET }}")"
+          ROOT_DOMAIN_RAW="$(trim_value "${{ vars.ROOT_DOMAIN }}")"
+          API_DOMAIN_RAW="$(trim_value "${{ vars.DEV_API_DOMAIN }}")"
 
           ROOT_DOMAIN="$(normalize_host "$ROOT_DOMAIN_RAW")"
           API_DOMAIN="$(normalize_host "$API_DOMAIN_RAW")"
@@ -75,6 +81,11 @@ jobs:
               exit 1
             fi
           done
+
+          if [[ ! "$ROLE_ARN" =~ ^arn:aws:iam::[0-9]{12}:role/.+ ]]; then
+            echo "[ERROR] invalid AWS role ARN format: $ROLE_ARN"
+            exit 1
+          fi
 
           echo "aws_region=$AWS_REGION_INPUT" >> "$GITHUB_OUTPUT"
           echo "image_tag=$IMAGE_TAG_INPUT" >> "$GITHUB_OUTPUT"
@@ -192,8 +203,13 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DEV_DEPLOY_DISCORD_WEBHOOK }}
         run: |
           set -euo pipefail
-          if [ -z "${DISCORD_WEBHOOK:-}" ]; then
+          WEBHOOK="$(echo "${DISCORD_WEBHOOK:-}" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          if [ -z "$WEBHOOK" ]; then
             echo "[INFO] DEV_DEPLOY_DISCORD_WEBHOOK is empty; skip notify."
+            exit 0
+          fi
+          if [[ ! "$WEBHOOK" =~ ^https://discord\.com/api/webhooks/[0-9]+/.+ ]]; then
+            echo "[WARN] DEV_DEPLOY_DISCORD_WEBHOOK format looks invalid; skip notify."
             exit 0
           fi
 
@@ -204,8 +220,10 @@ jobs:
           image_tag: ${{ steps.cfg.outputs.image_tag }}
           run: ${RUN_URL}"
 
-          jq -n --arg content "$MSG" '{content: $content}' | \
-            curl -fsS -X POST -H "Content-Type: application/json" --data @- "$DISCORD_WEBHOOK"
+          if ! jq -n --arg content "$MSG" '{content: $content}' | \
+            curl -fsS -X POST -H "Content-Type: application/json" --data @- "$WEBHOOK"; then
+            echo "[WARN] Discord notify failed; continue."
+          fi
 
       - name: Notify Discord (failure)
         if: failure()
@@ -214,8 +232,13 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DEV_DEPLOY_DISCORD_WEBHOOK }}
         run: |
           set -euo pipefail
-          if [ -z "${DISCORD_WEBHOOK:-}" ]; then
+          WEBHOOK="$(echo "${DISCORD_WEBHOOK:-}" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          if [ -z "$WEBHOOK" ]; then
             echo "[INFO] DEV_DEPLOY_DISCORD_WEBHOOK is empty; skip notify."
+            exit 0
+          fi
+          if [[ ! "$WEBHOOK" =~ ^https://discord\.com/api/webhooks/[0-9]+/.+ ]]; then
+            echo "[WARN] DEV_DEPLOY_DISCORD_WEBHOOK format looks invalid; skip notify."
             exit 0
           fi
 
@@ -226,5 +249,7 @@ jobs:
           image_tag: ${{ steps.cfg.outputs.image_tag }}
           run: ${RUN_URL}"
 
-          jq -n --arg content "$MSG" '{content: $content}' | \
-            curl -fsS -X POST -H "Content-Type: application/json" --data @- "$DISCORD_WEBHOOK"
+          if ! jq -n --arg content "$MSG" '{content: $content}' | \
+            curl -fsS -X POST -H "Content-Type: application/json" --data @- "$WEBHOOK"; then
+            echo "[WARN] Discord notify failed; continue."
+          fi
