@@ -5,49 +5,13 @@ on:
     inputs:
       aws_region:
         description: "AWS region"
-        required: true
+        required: false
         default: "ap-northeast-1"
-        type: string
-      aws_role_to_assume:
-        description: "IAM role ARN for GitHub OIDC (Terraform apply)"
-        required: true
-        type: string
-      tf_state_bucket:
-        description: "Terraform state bucket for dev/shared"
-        required: true
-        type: string
-      root_domain:
-        description: "Root domain (for example: enmusiquer.com)"
-        required: true
         type: string
       image_tag:
         description: "Backend image tag to deploy to dev"
-        required: true
-        type: string
-      create_dns_records:
-        description: "Create Route53 records in dev"
-        required: true
-        default: true
-        type: boolean
-      run_apply:
-        description: "Run terraform apply"
-        required: true
-        default: true
-        type: boolean
-      apply_approve_token:
-        description: "Approval token required when run_apply=true (set: apply-dev)"
         required: false
-        default: ""
-        type: string
-      run_health_check:
-        description: "Run health check after apply"
-        required: true
-        default: true
-        type: boolean
-      api_domain:
-        description: "API domain for health check"
-        required: true
-        default: "api-dev.enmusiquer.com"
+        default: "manual"
         type: string
 
 permissions:
@@ -61,20 +25,40 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ inputs.aws_region || vars.AWS_REGION }}
+      AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME_DEV_DEPLOY }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      ROOT_DOMAIN: ${{ vars.ROOT_DOMAIN }}
+      API_DOMAIN: ${{ vars.DEV_API_DOMAIN }}
+      RUN_APPLY: "true"
+      APPLY_APPROVE_TOKEN: "apply-dev"
+      RUN_HEALTH_CHECK: "true"
+      CREATE_DNS_RECORDS: "true"
 
     steps:
       - name: Guard apply branch
-        if: ${{ inputs.run_apply && github.ref_name != 'dev' }}
+        if: ${{ env.RUN_APPLY == 'true' && github.ref_name != 'dev' }}
         run: |
           echo "[ERROR] run_apply=true is allowed only on dev branch."
           echo "current ref: ${{ github.ref_name }}"
           exit 1
 
       - name: Guard apply approval token
-        if: ${{ inputs.run_apply && inputs.apply_approve_token != 'apply-dev' }}
+        if: ${{ env.RUN_APPLY == 'true' && env.APPLY_APPROVE_TOKEN != 'apply-dev' }}
         run: |
           echo "[ERROR] run_apply=true requires apply_approve_token=apply-dev."
           exit 1
+
+      - name: Guard required variables
+        run: |
+          set -euo pipefail
+          for v in AWS_REGION AWS_ROLE_TO_ASSUME TF_STATE_BUCKET ROOT_DOMAIN; do
+            if [ -z "${!v:-}" ]; then
+              echo "[ERROR] missing required variable: $v"
+              exit 1
+            fi
+          done
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,15 +71,15 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ inputs.aws_role_to_assume }}
-          aws-region: ${{ inputs.aws_region }}
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform init (dev)
         run: |
           terraform -chdir=infra/terraform/envs/dev init -reconfigure \
-            -backend-config="bucket=${{ inputs.tf_state_bucket }}" \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
             -backend-config="key=enm/dev/terraform.tfstate" \
-            -backend-config="region=${{ inputs.aws_region }}" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="use_lockfile=true" \
             -backend-config="encrypt=true" \
             -input=false
@@ -105,31 +89,31 @@ jobs:
           terraform -chdir=infra/terraform/envs/dev plan \
             -input=false \
             -out=tfplan \
-            -var "root_domain=${{ inputs.root_domain }}" \
-            -var "shared_state_bucket=${{ inputs.tf_state_bucket }}" \
+            -var "root_domain=${{ env.ROOT_DOMAIN }}" \
+            -var "shared_state_bucket=${{ env.TF_STATE_BUCKET }}" \
             -var "shared_state_key=enm/shared/terraform.tfstate" \
-            -var "shared_state_region=${{ inputs.aws_region }}" \
+            -var "shared_state_region=${{ env.AWS_REGION }}" \
             -var "runtime_enabled=true" \
-            -var "create_dns_records=${{ inputs.create_dns_records }}" \
+            -var "create_dns_records=${{ env.CREATE_DNS_RECORDS }}" \
             -var "api_image_tag=${{ inputs.image_tag }}"
 
       - name: Terraform apply (dev)
-        if: ${{ inputs.run_apply }}
+        if: ${{ env.RUN_APPLY == 'true' }}
         run: terraform -chdir=infra/terraform/envs/dev apply -input=false -auto-approve tfplan
 
       - name: Wait for ECS service stable
-        if: ${{ inputs.run_apply && inputs.run_health_check }}
+        if: ${{ env.RUN_APPLY == 'true' && env.RUN_HEALTH_CHECK == 'true' }}
         run: |
           aws ecs wait services-stable \
             --cluster "enm-dev-cluster" \
             --services "enm-dev-api" \
-            --region "${{ inputs.aws_region }}"
+            --region "${{ env.AWS_REGION }}"
 
       - name: Health check (ALB and API domain)
-        if: ${{ inputs.run_apply && inputs.run_health_check }}
+        if: ${{ env.RUN_APPLY == 'true' && env.RUN_HEALTH_CHECK == 'true' }}
         env:
-          API_DOMAIN: ${{ inputs.api_domain }}
-          AWS_REGION: ${{ inputs.aws_region }}
+          API_DOMAIN: ${{ env.API_DOMAIN }}
+          AWS_REGION: ${{ env.AWS_REGION }}
         shell: bash
         run: |
           set -euo pipefail
@@ -171,7 +155,7 @@ jobs:
           aws ecs describe-services \
             --cluster "enm-dev-cluster" \
             --services "enm-dev-api" \
-            --region "${{ inputs.aws_region }}" \
+            --region "${{ env.AWS_REGION }}" \
             --query "services[0].events[0:15].[createdAt,message]" \
             --output table || true
 
@@ -179,8 +163,8 @@ jobs:
         if: always()
         run: |
           echo "image_tag: ${{ inputs.image_tag }}"
-          echo "run_apply: ${{ inputs.run_apply }}"
-          echo "run_health_check: ${{ inputs.run_health_check }}"
+          echo "run_apply: ${{ env.RUN_APPLY }}"
+          echo "run_health_check: ${{ env.RUN_HEALTH_CHECK }}"
 
       - name: Notify Discord (success)
         if: ${{ success() && secrets.DEV_DEPLOY_DISCORD_WEBHOOK != '' }}
