@@ -327,3 +327,31 @@ powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task api-health -En
 - `DEV_API_DOMAIN`（default: `api-dev.enmusiquer.com`）
 - `DEV_ECS_CLUSTER_NAME`（default: `enm-dev-cluster`）
 - `DEV_ECS_SERVICE_NAME`（default: `enm-dev-api`）
+
+## dev-deploy 実行ガード
+
+- `dev-deploy` は `run_apply=true` の場合、`dev` ブランチ実行のみ許可します。
+- `backend-image` からの `trigger_dev_deploy=true` 自動連携も、`dev` ブランチ時のみ実行されます。
+
+## dev-deploy の apply 承認トークン
+
+`dev-deploy` では `run_apply=true` の場合、`apply_approve_token=apply-dev` が必須です。
+
+- 手動実行時: `apply_approve_token` に `apply-dev` を入力
+- `backend-image` からの自動連携時: 自動で `apply-dev` を設定して dispatch
+
+## dev-deploy Discord 通知（任意）
+
+`dev-deploy` workflow は、以下 Secret が設定されている場合に結果を Discord へ通知します。
+
+- `DEV_DEPLOY_DISCORD_WEBHOOK`
+
+通知内容:
+- 成功時: `dev-deploy success`（repository / branch / image_tag / run URL）
+- 失敗時: `dev-deploy failed`（repository / branch / image_tag / run URL）
+
+## Webhook の扱い
+
+- Discord Webhook URL はリポジトリへ直接記載しないでください。
+- GitHub では Secret `DEV_DEPLOY_DISCORD_WEBHOOK` にのみ設定してください。
+- pre-commit / CI の secret guard は、リポジトリ全体の Discord Webhook 文字列を検知して失敗させます。

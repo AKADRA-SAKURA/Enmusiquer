@@ -34,6 +34,11 @@ on:
         required: true
         default: true
         type: boolean
+      apply_approve_token:
+        description: "Approval token required when run_apply=true (set: apply-dev)"
+        required: false
+        default: ""
+        type: string
       run_health_check:
         description: "Run health check after apply"
         required: true
@@ -68,6 +73,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Guard apply branch
+        if: ${{ inputs.run_apply && github.ref_name != 'dev' }}
+        run: |
+          echo "[ERROR] run_apply=true は dev ブランチ実行のみ許可しています。"
+          echo "current ref: ${{ github.ref_name }}"
+          exit 1
+
+      - name: Guard apply approval token
+        if: ${{ inputs.run_apply && inputs.apply_approve_token != 'apply-dev' }}
+        run: |
+          echo "[ERROR] run_apply=true の場合は apply_approve_token=apply-dev が必要です。"
+          exit 1
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -173,3 +191,37 @@ jobs:
           echo "image_tag: ${{ inputs.image_tag }}"
           echo "run_apply: ${{ inputs.run_apply }}"
           echo "run_health_check: ${{ inputs.run_health_check }}"
+
+      - name: Notify Discord (success)
+        if: ${{ success() && secrets.DEV_DEPLOY_DISCORD_WEBHOOK != '' }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DEV_DEPLOY_DISCORD_WEBHOOK }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MSG="[SUCCESS] dev-deploy success
+repository: ${{ github.repository }}
+branch: ${{ github.ref_name }}
+image_tag: ${{ inputs.image_tag }}
+run: ${RUN_URL}"
+
+          jq -n --arg content "$MSG" '{content: $content}' | \
+            curl -fsS -X POST -H "Content-Type: application/json" --data @- "$DISCORD_WEBHOOK"
+
+      - name: Notify Discord (failure)
+        if: ${{ failure() && secrets.DEV_DEPLOY_DISCORD_WEBHOOK != '' }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DEV_DEPLOY_DISCORD_WEBHOOK }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MSG="[FAILED] dev-deploy failed
+repository: ${{ github.repository }}
+branch: ${{ github.ref_name }}
+image_tag: ${{ inputs.image_tag }}
+run: ${RUN_URL}"
+
+          jq -n --arg content "$MSG" '{content: $content}' | \
+            curl -fsS -X POST -H "Content-Type: application/json" --data @- "$DISCORD_WEBHOOK"

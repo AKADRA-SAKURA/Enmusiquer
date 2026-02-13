@@ -95,6 +95,13 @@ jobs:
           DEV_ECS_SERVICE_NAME: ${{ vars.DEV_ECS_SERVICE_NAME }}
         with:
           script: |
+            const branchRef = context.ref;
+            const branchName = branchRef.replace("refs/heads/", "");
+            if (branchName !== "dev") {
+              core.notice(`Skip dev-deploy trigger because branch is '${branchName}' (required: dev).`);
+              return;
+            }
+
             const requiredVars = {
               DEV_DEPLOY_ROLE_ARN: process.env.DEV_DEPLOY_ROLE_ARN,
               TF_STATE_BUCKET: process.env.TF_STATE_BUCKET,
@@ -114,7 +121,7 @@ jobs:
 
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const ref = context.ref.replace("refs/heads/", "");
+            const ref = branchName;
 
             const inputs = {
               aws_region: process.env.AWS_REGION,
@@ -124,6 +131,7 @@ jobs:
               image_tag: process.env.IMAGE_TAG,
               create_dns_records: "true",
               run_apply: "true",
+              apply_approve_token: "apply-dev",
               run_health_check: "true",
               api_domain: process.env.DEV_API_DOMAIN || "api-dev.enmusiquer.com",
               ecs_cluster_name: process.env.DEV_ECS_CLUSTER_NAME || "enm-dev-cluster",
