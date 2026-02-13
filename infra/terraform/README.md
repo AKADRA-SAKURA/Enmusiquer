@@ -355,3 +355,24 @@ powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task api-health -En
 - Discord Webhook URL はリポジトリへ直接記載しないでください。
 - GitHub では Secret `DEV_DEPLOY_DISCORD_WEBHOOK` にのみ設定してください。
 - pre-commit / CI の secret guard は、リポジトリ全体の Discord Webhook 文字列を検知して失敗させます。
+
+## GitHub Variables/Secret の一括設定
+
+以下スクリプトで、Actions の Variables を一括登録できます。
+
+- `scripts/setup_github_actions_config.ps1`
+
+実行例:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/setup_github_actions_config.ps1 `
+  -Repository "AKADRA-SAKURA/Enmusiquer" `
+  -TfStateBucket "enmusiquer-tfstate-785311025023-apne1" `
+  -DeployRoleArn "arn:aws:iam::785311025023:role/enm-github-actions-terraform-dev" `
+  -HealthRoleArn "arn:aws:iam::785311025023:role/enm-github-actions-dev-health" `
+  -SetDiscordWebhookSecret
+```
+
+- `-SetDiscordWebhookSecret` を付けると、`DEV_DEPLOY_DISCORD_WEBHOOK` を対話入力で Secret に保存します。
+- 事前に `gh auth login` が必要です。
+- 反映内容確認だけしたい場合は `-DryRun` を付けてください。
