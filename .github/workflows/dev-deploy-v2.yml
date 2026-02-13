@@ -38,12 +38,24 @@ jobs:
         run: |
           set -euo pipefail
 
+          normalize_host() {
+            local v="$1"
+            v="${v#http://}"
+            v="${v#https://}"
+            v="${v%%/*}"
+            v="${v%%:*}"
+            echo "$v"
+          }
+
           AWS_REGION_INPUT="${{ github.event.inputs.aws_region }}"
           IMAGE_TAG_INPUT="${{ github.event.inputs.image_tag }}"
           ROLE_ARN="${{ vars.AWS_ROLE_TO_ASSUME_DEV_DEPLOY }}"
           STATE_BUCKET="${{ vars.TF_STATE_BUCKET }}"
-          ROOT_DOMAIN="${{ vars.ROOT_DOMAIN }}"
-          API_DOMAIN="${{ vars.DEV_API_DOMAIN }}"
+          ROOT_DOMAIN_RAW="${{ vars.ROOT_DOMAIN }}"
+          API_DOMAIN_RAW="${{ vars.DEV_API_DOMAIN }}"
+
+          ROOT_DOMAIN="$(normalize_host "$ROOT_DOMAIN_RAW")"
+          API_DOMAIN="$(normalize_host "$API_DOMAIN_RAW")"
 
           if [ -z "$API_DOMAIN" ] && [ -n "$ROOT_DOMAIN" ]; then
             API_DOMAIN="api-dev.${ROOT_DOMAIN}"
