@@ -134,8 +134,6 @@ jobs:
               apply_approve_token: "apply-dev",
               run_health_check: "true",
               api_domain: process.env.DEV_API_DOMAIN || "api-dev.enmusiquer.com",
-              ecs_cluster_name: process.env.DEV_ECS_CLUSTER_NAME || "enm-dev-cluster",
-              ecs_service_name: process.env.DEV_ECS_SERVICE_NAME || "enm-dev-api",
             };
 
             await github.rest.actions.createWorkflowDispatch({
