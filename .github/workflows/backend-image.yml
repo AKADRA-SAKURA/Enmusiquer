@@ -125,15 +125,7 @@ jobs:
 
             const inputs = {
               aws_region: process.env.AWS_REGION,
-              aws_role_to_assume: process.env.DEV_DEPLOY_ROLE_ARN,
-              tf_state_bucket: process.env.TF_STATE_BUCKET,
-              root_domain: process.env.ROOT_DOMAIN,
               image_tag: process.env.IMAGE_TAG,
-              create_dns_records: "true",
-              run_apply: "true",
-              apply_approve_token: "apply-dev",
-              run_health_check: "true",
-              api_domain: process.env.DEV_API_DOMAIN || "api-dev.enmusiquer.com",
             };
 
             await github.rest.actions.createWorkflowDispatch({
