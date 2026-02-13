@@ -76,14 +76,14 @@ jobs:
       - name: Guard apply branch
         if: ${{ inputs.run_apply && github.ref_name != 'dev' }}
         run: |
-          echo "[ERROR] run_apply=true は dev ブランチ実行のみ許可しています。"
+          echo "[ERROR] run_apply=true is allowed only on dev branch."
           echo "current ref: ${{ github.ref_name }}"
           exit 1
 
       - name: Guard apply approval token
         if: ${{ inputs.run_apply && inputs.apply_approve_token != 'apply-dev' }}
         run: |
-          echo "[ERROR] run_apply=true の場合は apply_approve_token=apply-dev が必要です。"
+          echo "[ERROR] run_apply=true requires apply_approve_token=apply-dev."
           exit 1
 
       - name: Checkout
