@@ -62,7 +62,8 @@ module "ecs_service" {
   environment = local.environment
   enabled     = var.runtime_enabled
   vpc_id      = data.terraform_remote_state.shared.outputs.vpc_id
-  private_subnet_ids = data.terraform_remote_state.shared.outputs.private_subnet_ids
+  private_subnet_ids = var.api_use_public_subnets ? data.terraform_remote_state.shared.outputs.public_subnet_ids : data.terraform_remote_state.shared.outputs.private_subnet_ids
+  assign_public_ip   = var.api_assign_public_ip
   target_group_arn   = module.alb.target_group_arn
   alb_security_group_id = module.alb.security_group_id
   container_image    = local.api_image
@@ -93,7 +94,8 @@ module "alb" {
   enabled     = var.runtime_enabled
   vpc_id      = data.terraform_remote_state.shared.outputs.vpc_id
   public_subnet_ids = data.terraform_remote_state.shared.outputs.public_subnet_ids
-  container_port = var.api_container_port
+  container_port   = var.api_container_port
+  health_check_path = var.api_health_check_path
 }
 
 module "waf" {

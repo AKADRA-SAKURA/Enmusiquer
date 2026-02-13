@@ -281,3 +281,13 @@ prodへ反映する場合:
 powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task plan-all -Scope all
 powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task apply-safe -Environment prod -ProdApproveToken apply-prod
 ```
+
+## APIヘルスチェック（ALB + 独自ドメイン + ECSイベント）
+
+```powershell
+# dev の API ヘルスを確認（異常時は自動で ECS イベントも表示）
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task api-health -Environment dev
+
+# prod で ECS イベントを常に表示したい場合
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task api-health -Environment prod -ShowEcsEvents
+```

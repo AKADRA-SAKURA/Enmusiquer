@@ -22,6 +22,8 @@ override.tf.json
 terraform.tfvars
 *.auto.tfvars
 infra/terraform/envs/*/backend.hcl
+trust-policy.json
+ecr-push-policy.json
 
 # OS
 .DS_Store

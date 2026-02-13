@@ -71,7 +71,25 @@ variable "api_secret_arns" {
 variable "api_container_port" {
   type        = number
   description = "Container port for ALB and ECS."
-  default     = 80
+  default     = 8000
+}
+
+variable "api_health_check_path" {
+  type        = string
+  description = "Health check path for API target group."
+  default     = "/health"
+}
+
+variable "api_use_public_subnets" {
+  type        = bool
+  description = "Run ECS tasks in public subnets for dev bootstrap."
+  default     = true
+}
+
+variable "api_assign_public_ip" {
+  type        = bool
+  description = "Assign public IP to ECS tasks for dev bootstrap."
+  default     = true
 }
 
 variable "db_instance_class" {
