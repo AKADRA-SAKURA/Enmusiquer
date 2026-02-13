@@ -310,3 +310,20 @@ powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task api-health -En
 2. ECS service stable å¾…æ©Ÿ
 3. `ALB / APIãƒ‰ãƒ¡ã‚¤ãƒ³` ã® `/health` ã‚’ãƒªãƒˆãƒ©ã‚¤ä»˜ãã§ç¢ºèª
 4. å¤±æ•—æ™‚ã« ECS events ã‚’è¡¨ç¤º
+
+## backend-image ‚©‚ç dev-deploy ‚ğ©“®‹N“®‚·‚é
+
+`backend-image` workflow ‚É `trigger_dev_deploy` ‚ğ’Ç‰Á‚µ‚Ü‚µ‚½B
+
+- `trigger_dev_deploy = true` ‚Ì‚Æ‚«Aimage push Œã‚É `dev-deploy` ‚ğ©“® dispatch
+- `image_tag` ‚Í `backend-image` ‚Åw’è‚µ‚½’l‚ğ‚»‚Ì‚Ü‚Ü `dev-deploy` ‚Éˆø‚«“n‚µ
+
+•K—v‚È Repository Variables:
+- `AWS_ROLE_TO_ASSUME_DEV_DEPLOY`
+- `TF_STATE_BUCKET`
+- `ROOT_DOMAIN`
+
+”CˆÓ‚Ì Repository Variables:
+- `DEV_API_DOMAIN`idefault: `api-dev.enmusiquer.com`j
+- `DEV_ECS_CLUSTER_NAME`idefault: `enm-dev-cluster`j
+- `DEV_ECS_SERVICE_NAME`idefault: `enm-dev-api`j

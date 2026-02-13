@@ -27,10 +27,16 @@ on:
         required: true
         default: false
         type: boolean
+      trigger_dev_deploy:
+        description: "Trigger dev-deploy workflow after image push"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   id-token: write
   contents: read
+  actions: write
 
 jobs:
   build-and-push:
@@ -74,3 +80,62 @@ jobs:
       - name: Summary
         run: |
           echo "Pushed image: ${{ steps.prep.outputs.image }}"
+
+      - name: Trigger dev-deploy workflow
+        if: ${{ inputs.trigger_dev_deploy }}
+        uses: actions/github-script@v7
+        env:
+          AWS_REGION: ${{ inputs.aws_region }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          DEV_DEPLOY_ROLE_ARN: ${{ vars.AWS_ROLE_TO_ASSUME_DEV_DEPLOY }}
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          ROOT_DOMAIN: ${{ vars.ROOT_DOMAIN }}
+          DEV_API_DOMAIN: ${{ vars.DEV_API_DOMAIN }}
+          DEV_ECS_CLUSTER_NAME: ${{ vars.DEV_ECS_CLUSTER_NAME }}
+          DEV_ECS_SERVICE_NAME: ${{ vars.DEV_ECS_SERVICE_NAME }}
+        with:
+          script: |
+            const requiredVars = {
+              DEV_DEPLOY_ROLE_ARN: process.env.DEV_DEPLOY_ROLE_ARN,
+              TF_STATE_BUCKET: process.env.TF_STATE_BUCKET,
+              ROOT_DOMAIN: process.env.ROOT_DOMAIN,
+            };
+
+            const missing = Object.entries(requiredVars)
+              .filter(([, value]) => !value || value.trim() === "")
+              .map(([key]) => key);
+
+            if (missing.length > 0) {
+              core.setFailed(
+                `Missing repository variables for dev deploy trigger: ${missing.join(", ")}`
+              );
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const ref = context.ref.replace("refs/heads/", "");
+
+            const inputs = {
+              aws_region: process.env.AWS_REGION,
+              aws_role_to_assume: process.env.DEV_DEPLOY_ROLE_ARN,
+              tf_state_bucket: process.env.TF_STATE_BUCKET,
+              root_domain: process.env.ROOT_DOMAIN,
+              image_tag: process.env.IMAGE_TAG,
+              create_dns_records: "true",
+              run_apply: "true",
+              run_health_check: "true",
+              api_domain: process.env.DEV_API_DOMAIN || "api-dev.enmusiquer.com",
+              ecs_cluster_name: process.env.DEV_ECS_CLUSTER_NAME || "enm-dev-cluster",
+              ecs_service_name: process.env.DEV_ECS_SERVICE_NAME || "enm-dev-api",
+            };
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner,
+              repo,
+              workflow_id: "dev-deploy.yml",
+              ref,
+              inputs,
+            });
+
+            core.notice(`Triggered dev-deploy workflow on ref=${ref} with image_tag=${process.env.IMAGE_TAG}`);
