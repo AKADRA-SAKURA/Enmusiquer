@@ -281,3 +281,77 @@ prodã¸åæ˜ ã™ã‚‹å ´åˆ:
 powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task plan-all -Scope all
 powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task apply-safe -Environment prod -ProdApproveToken apply-prod
 ```
+
+## APIãƒ˜ãƒ«ã‚¹ãƒã‚§ãƒƒã‚¯ï¼ˆALB + ç‹¬è‡ªãƒ‰ãƒ¡ã‚¤ãƒ³ + ECSã‚¤ãƒ™ãƒ³ãƒˆï¼‰
+
+```powershell
+# dev ã® API ãƒ˜ãƒ«ã‚¹ã‚’ç¢ºèªï¼ˆç•°å¸¸æ™‚ã¯è‡ªå‹•ã§ ECS ã‚¤ãƒ™ãƒ³ãƒˆã‚‚è¡¨ç¤ºï¼‰
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task api-health -Environment dev
+
+# prod ã§ ECS ã‚¤ãƒ™ãƒ³ãƒˆã‚’å¸¸ã«è¡¨ç¤ºã—ãŸã„å ´åˆ
+powershell -ExecutionPolicy Bypass -File scripts/tf-cli.ps1 -Task api-health -Environment prod -ShowEcsEvents
+```
+
+è£œè¶³:
+- `terraform.tfvars` ã® `runtime_enabled=false` ã®ç’°å¢ƒã§ã¯ã€`api-health` ã¯å®Ÿè¡Œç³»æœªä½œæˆã¨ã—ã¦ãƒã‚§ãƒƒã‚¯ã‚’ã‚¹ã‚­ãƒƒãƒ—ã—ã¾ã™ã€‚
+
+## GitHub Actions ã§ dev ãƒ‡ãƒ—ãƒ­ã‚¤
+
+- Workflow: `.github/workflows/dev-deploy.yml`
+- å®Ÿè¡Œæ–¹æ³•: Actions ã‹ã‚‰ `dev-deploy` ã‚’ `workflow_dispatch` ã§å®Ÿè¡Œ
+- ä¸»è¦å…¥åŠ›:
+  - `aws_role_to_assume`: Terraform apply ç”¨ã® OIDC ãƒ­ãƒ¼ãƒ« ARN
+  - `tf_state_bucket`: Terraform state ã® S3 ãƒã‚±ãƒƒãƒˆå
+  - `root_domain`: ãƒ«ãƒ¼ãƒˆãƒ‰ãƒ¡ã‚¤ãƒ³ï¼ˆä¾‹: `enmusiquer.com`ï¼‰
+  - `image_tag`: ãƒ‡ãƒ—ãƒ­ã‚¤ã™ã‚‹ backend ã‚¤ãƒ¡ãƒ¼ã‚¸ã‚¿ã‚°
+
+å‡¦ç†å†…å®¹:
+1. `infra/terraform/envs/dev` ã§ `init -> plan -> apply`
+2. ECS service stable å¾…æ©Ÿ
+3. `ALB / APIãƒ‰ãƒ¡ã‚¤ãƒ³` ã® `/health` ã‚’ãƒªãƒˆãƒ©ã‚¤ä»˜ãã§ç¢ºèª
+4. å¤±æ•—æ™‚ã« ECS events ã‚’è¡¨ç¤º
+
+## backend-image ‚©‚ç dev-deploy ‚ğ©“®‹N“®‚·‚é
+
+`backend-image` workflow ‚É `trigger_dev_deploy` ‚ğ’Ç‰Á‚µ‚Ü‚µ‚½B
+
+- `trigger_dev_deploy = true` ‚Ì‚Æ‚«Aimage push Œã‚É `dev-deploy` ‚ğ©“® dispatch
+- `image_tag` ‚Í `backend-image` ‚Åw’è‚µ‚½’l‚ğ‚»‚Ì‚Ü‚Ü `dev-deploy` ‚Éˆø‚«“n‚µ
+
+•K—v‚È Repository Variables:
+- `AWS_ROLE_TO_ASSUME_DEV_DEPLOY`
+- `TF_STATE_BUCKET`
+- `ROOT_DOMAIN`
+
+”CˆÓ‚Ì Repository Variables:
+- `DEV_API_DOMAIN`idefault: `api-dev.enmusiquer.com`j
+- `DEV_ECS_CLUSTER_NAME`idefault: `enm-dev-cluster`j
+- `DEV_ECS_SERVICE_NAME`idefault: `enm-dev-api`j
+
+## dev-deploy ÀsƒK[ƒh
+
+- `dev-deploy` ‚Í `run_apply=true` ‚Ìê‡A`dev` ƒuƒ‰ƒ“ƒ`Às‚Ì‚İ‹–‰Â‚µ‚Ü‚·B
+- `backend-image` ‚©‚ç‚Ì `trigger_dev_deploy=true` ©“®˜AŒg‚àA`dev` ƒuƒ‰ƒ“ƒ`‚Ì‚İÀs‚³‚ê‚Ü‚·B
+
+## dev-deploy ‚Ì apply ³”Fƒg[ƒNƒ“
+
+`dev-deploy` ‚Å‚Í `run_apply=true` ‚Ìê‡A`apply_approve_token=apply-dev` ‚ª•K{‚Å‚·B
+
+- è“®Às: `apply_approve_token` ‚É `apply-dev` ‚ğ“ü—Í
+- `backend-image` ‚©‚ç‚Ì©“®˜AŒg: ©“®‚Å `apply-dev` ‚ğİ’è‚µ‚Ä dispatch
+
+## dev-deploy Discord ’Ê’mi”CˆÓj
+
+`dev-deploy` workflow ‚ÍAˆÈ‰º Secret ‚ªİ’è‚³‚ê‚Ä‚¢‚éê‡‚ÉŒ‹‰Ê‚ğ Discord ‚Ö’Ê’m‚µ‚Ü‚·B
+
+- `DEV_DEPLOY_DISCORD_WEBHOOK`
+
+’Ê’m“à—e:
+- ¬Œ÷: `dev-deploy success`irepository / branch / image_tag / run URLj
+- ¸”s: `dev-deploy failed`irepository / branch / image_tag / run URLj
+
+## Webhook ‚Ìˆµ‚¢
+
+- Discord Webhook URL ‚ÍƒŠƒ|ƒWƒgƒŠ‚Ö’¼Ú‹LÚ‚µ‚È‚¢‚Å‚­‚¾‚³‚¢B
+- GitHub ‚Å‚Í Secret `DEV_DEPLOY_DISCORD_WEBHOOK` ‚É‚Ì‚İİ’è‚µ‚Ä‚­‚¾‚³‚¢B
+- pre-commit / CI ‚Ì secret guard ‚ÍAƒŠƒ|ƒWƒgƒŠ‘S‘Ì‚Ì Discord Webhook •¶š—ñ‚ğŒŸ’m‚µ‚Ä¸”s‚³‚¹‚Ü‚·B

@@ -21,7 +21,13 @@ variable "vpc_id" {
 
 variable "private_subnet_ids" {
   type        = list(string)
-  description = "Private subnets for ECS tasks."
+  description = "Subnet IDs for ECS tasks."
+}
+
+variable "assign_public_ip" {
+  type        = bool
+  description = "Assign public IP to ECS tasks."
+  default     = false
 }
 
 variable "target_group_arn" {
@@ -132,6 +138,36 @@ resource "aws_iam_role_policy_attachment" "execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+data "aws_iam_policy_document" "execution_runtime_access" {
+  statement {
+    sid = "AllowReadSecretsAndParameters"
+
+    actions = [
+      "secretsmanager:GetSecretValue",
+      "ssm:GetParameters",
+      "ssm:GetParameter",
+    ]
+
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "AllowKmsDecryptForSecrets"
+
+    actions = ["kms:Decrypt"]
+
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "execution_runtime_access" {
+  count = var.enabled ? 1 : 0
+
+  name   = "${var.name_prefix}-ecs-exec-runtime-access"
+  role   = aws_iam_role.execution[0].id
+  policy = data.aws_iam_policy_document.execution_runtime_access.json
+}
+
 resource "aws_iam_role" "task" {
   count = var.enabled ? 1 : 0
 
@@ -220,7 +256,7 @@ resource "aws_ecs_service" "this" {
   network_configuration {
     subnets          = var.private_subnet_ids
     security_groups  = [aws_security_group.ecs[0].id]
-    assign_public_ip = false
+    assign_public_ip = var.assign_public_ip
   }
 
   load_balancer {

@@ -19,8 +19,15 @@ function Invoke-Step {
   )
 
   Write-Host "==> $Name" -ForegroundColor Cyan
+  $global:LASTEXITCODE = 0
   & $Action
-  if (-not $?) {
+  $succeeded = $?
+  $exitCode = $LASTEXITCODE
+
+  if (-not $succeeded) {
+    throw "Step failed: $Name"
+  }
+  if ($null -ne $exitCode -and $exitCode -ne 0) {
     throw "Step failed: $Name"
   }
 }

@@ -71,7 +71,13 @@ variable "api_secret_arns" {
 variable "api_container_port" {
   type        = number
   description = "Container port for ALB and ECS."
-  default     = 80
+  default     = 8000
+}
+
+variable "api_health_check_path" {
+  type        = string
+  description = "Health check path for API target group."
+  default     = "/health"
 }
 
 variable "db_instance_class" {

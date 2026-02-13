@@ -93,7 +93,8 @@ module "alb" {
   enabled     = var.runtime_enabled
   vpc_id      = data.terraform_remote_state.shared.outputs.vpc_id
   public_subnet_ids = data.terraform_remote_state.shared.outputs.public_subnet_ids
-  container_port = var.api_container_port
+  container_port   = var.api_container_port
+  health_check_path = var.api_health_check_path
 }
 
 module "waf" {

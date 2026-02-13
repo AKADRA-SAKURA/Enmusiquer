@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("setup", "doctor", "secret-check", "plan-all", "apply-safe", "run")]
+  [ValidateSet("setup", "doctor", "secret-check", "plan-all", "apply-safe", "run", "api-health")]
   [string]$Task,
 
   [ValidateSet("shared", "dev", "prod")]
@@ -14,6 +14,7 @@ param(
 
   [string]$VarFile = "terraform.tfvars",
   [string]$ProdApproveToken,
+  [string]$Region = "",
 
   [switch]$Reconfigure,
   [switch]$ReconfigureInit,
@@ -24,7 +25,8 @@ param(
   [switch]$SkipAwsSts,
   [switch]$RunSecretGuard,
   [switch]$Force,
-  [switch]$SkipHooks
+  [switch]$SkipHooks,
+  [switch]$ShowEcsEvents
 )
 
 Set-StrictMode -Version Latest
@@ -46,6 +48,7 @@ $paths = @{
   planAll     = Join-Path $scriptDir "tf-plan-all.ps1"
   applySafe   = Join-Path $scriptDir "tf-apply-safe.ps1"
   run         = Join-Path $scriptDir "tf.ps1"
+  apiHealth   = Join-Path $scriptDir "api-health.ps1"
 }
 
 switch ($Task) {
@@ -112,6 +115,23 @@ switch ($Task) {
     if ($AutoApprove) { $args.AutoApprove = $true }
     if ($InitIfNeeded) { $args.InitIfNeeded = $true }
     & $paths.run @args
+  }
+
+  "api-health" {
+    Ensure-ScriptExists $paths.apiHealth
+    if (-not $Environment) {
+      throw "-Environment is required for -Task api-health"
+    }
+    if ($Environment -eq "shared") {
+      throw "-Task api-health supports only dev or prod."
+    }
+
+    $args = @{
+      Environment = $Environment
+    }
+    if ($Region) { $args.Region = $Region }
+    if ($ShowEcsEvents) { $args.ShowEcsEvents = $true }
+    & $paths.apiHealth @args
   }
 }
 

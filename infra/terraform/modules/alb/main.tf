@@ -30,6 +30,12 @@ variable "container_port" {
   default     = 80
 }
 
+variable "health_check_path" {
+  type        = string
+  description = "Health check path for target group."
+  default     = "/health"
+}
+
 variable "certificate_arn" {
   type        = string
   description = "ACM certificate ARN for HTTPS listener."
@@ -40,6 +46,11 @@ variable "enable_https_listener" {
   type        = bool
   description = "Enable HTTPS listener when true."
   default     = false
+}
+
+locals {
+  # aws_lb_target_group.name_prefix is limited to 6 chars.
+  target_group_name_prefix = substr(replace(var.name_prefix, "-", ""), 0, 6)
 }
 
 resource "aws_security_group" "alb" {
@@ -99,7 +110,7 @@ resource "aws_lb" "this" {
 resource "aws_lb_target_group" "api" {
   count = var.enabled ? 1 : 0
 
-  name        = "${var.name_prefix}-api"
+  name_prefix = local.target_group_name_prefix
   port        = var.container_port
   protocol    = "HTTP"
   target_type = "ip"
@@ -107,12 +118,16 @@ resource "aws_lb_target_group" "api" {
 
   health_check {
     enabled             = true
-    path                = "/"
+    path                = var.health_check_path
     matcher             = "200-399"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 2
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 

@@ -26,19 +26,12 @@ function Assert-FileContains([string]$path, [string]$pattern, [string]$message) 
   }
 }
 
-function Assert-NoSecretPatternInTerraform([string]$pattern, [string]$label) {
-  $trackedFiles = git ls-files "infra/terraform"
-  $targets = $trackedFiles | Where-Object { $_ -notlike "*.example" }
-  $hit = @()
-  foreach ($path in $targets) {
-    $match = Select-String -Path $path -Pattern $pattern
-    if ($match) {
-      $hit += $match
-    }
-  }
-  if ($hit) {
+function Assert-NoSecretPatternInTrackedFiles([string]$pattern, [string]$label) {
+  $global:LASTEXITCODE = 0
+  $hit = & git grep -n -I -E $pattern -- . ":(exclude)*.example" 2>$null
+  if ($LASTEXITCODE -eq 0 -and $hit) {
     Write-Host "[ERROR] Found secret-like value: $label" -ForegroundColor Red
-    $hit | ForEach-Object { Write-Host " - $($_.Path):$($_.LineNumber)" -ForegroundColor Red }
+    $hit | ForEach-Object { Write-Host " - $_" -ForegroundColor Red }
     exit 1
   }
 }
@@ -53,8 +46,8 @@ Assert-FileContains "infra/terraform/envs/shared/backend.hcl.example" 'REPLACE_M
 Assert-FileContains "infra/terraform/envs/dev/backend.hcl.example" 'REPLACE_ME_TFSTATE_BUCKET' "backend.hcl.example must keep placeholder bucket value in repository (dev)."
 Assert-FileContains "infra/terraform/envs/prod/backend.hcl.example" 'REPLACE_ME_TFSTATE_BUCKET' "backend.hcl.example must keep placeholder bucket value in repository (prod)."
 
-Assert-NoSecretPatternInTerraform 'discord_webhook_url\s*=\s*"https?://discord(app)?\.com/api/webhooks/' 'Discord webhook URL'
-Assert-NoSecretPatternInTerraform 'AKIA[0-9A-Z]{16}' 'AWS access key id'
-Assert-NoSecretPatternInTerraform 'aws_secret_access_key\s*=\s*"' 'AWS secret access key'
+Assert-NoSecretPatternInTrackedFiles 'https?://discord(app)?\.com/api/webhooks/[A-Za-z0-9_/-]+' 'Discord webhook URL'
+Assert-NoSecretPatternInTrackedFiles 'AKIA[0-9A-Z]{16}' 'AWS access key id'
+Assert-NoSecretPatternInTrackedFiles 'aws_secret_access_key\s*=\s*"' 'AWS secret access key'
 
 Write-Host "[OK] Terraform secret guard passed." -ForegroundColor Green
