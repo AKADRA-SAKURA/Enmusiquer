@@ -10,7 +10,7 @@ jobs:
   deprecated:
     runs-on: ubuntu-latest
     steps:
-      - name: Deprecated workflow notice
+      - name: 廃止ワークフロー案内
         run: |
-          echo "[INFO] dev-deploy.yml is deprecated."
-          echo "Use dev-deploy-v2.yml instead."
+          echo "[情報] dev-deploy.yml は廃止されています。"
+          echo "dev-deploy-v2.yml を使用してください。"

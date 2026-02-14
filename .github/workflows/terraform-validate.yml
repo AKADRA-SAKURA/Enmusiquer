@@ -21,19 +21,19 @@ jobs:
         env_dir: [shared, dev, prod]
 
     steps:
-      - name: Checkout
+      - name: チェックアウト
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
+      - name: Terraform セットアップ
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      - name: Terraform fmt check
+      - name: Terraform fmt チェック
         run: terraform -chdir=infra/terraform fmt -check -recursive
 
-      - name: Terraform init (no backend)
+      - name: Terraform init（backendなし）
         run: terraform -chdir=infra/terraform/envs/${{ matrix.env_dir }} init -backend=false
 
-      - name: Terraform validate
+      - name: Terraform validate 実行
         run: terraform -chdir=infra/terraform/envs/${{ matrix.env_dir }} validate
