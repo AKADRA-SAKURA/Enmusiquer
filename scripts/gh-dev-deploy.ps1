@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Repository = "AKADRA-SAKURA/Enmusiquer",
   [string]$Ref = "dev",
   [string]$AwsRegion = "ap-northeast-1",
@@ -15,7 +15,7 @@ $ErrorActionPreference = "Stop"
 
 function Require-Command([string]$Name) {
   if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
-    throw "Required command not found: $Name"
+    throw "必要なコマンドが見つかりません: $Name"
   }
 }
 
@@ -23,16 +23,16 @@ function Require-GhAuth {
   $global:LASTEXITCODE = 0
   & gh auth status 1>$null 2>$null
   if ($LASTEXITCODE -ne 0) {
-    throw "gh is not authenticated. Run 'gh auth login' first."
+    throw "gh の認証が未完了です。先に 'gh auth login' を実行してください。"
   }
 }
 
 function Assert-ImageTag([string]$Tag) {
   if ([string]::IsNullOrWhiteSpace($Tag)) {
-    throw "ImageTag is empty."
+    throw "ImageTag が未設定です。"
   }
   if ($Tag -notmatch '^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$') {
-    throw "Invalid ImageTag format: $Tag"
+    throw "ImageTag の形式が不正です: $Tag"
   }
 }
 
@@ -41,12 +41,12 @@ function Assert-RequiredVariables([string]$Repo, [string[]]$Names) {
     $global:LASTEXITCODE = 0
     & gh variable get $name --repo $Repo 1>$null 2>$null
     if ($LASTEXITCODE -ne 0) {
-      throw "Missing required GitHub variable: $name (repo: $Repo)"
+      throw "必須の GitHub Variable が不足しています: $name (repo: $Repo)"
     }
   }
 }
 
-Write-Host "== Trigger dev-deploy-v2 ==" -ForegroundColor Cyan
+Write-Host "== dev-deploy-v2 起動 ==" -ForegroundColor Cyan
 
 Require-Command "gh"
 Require-GhAuth
@@ -82,10 +82,10 @@ if (-not [string]::IsNullOrWhiteSpace($EcsServiceName)) {
 & gh @runArgs
 
 if ($LASTEXITCODE -ne 0) {
-  throw "Failed to dispatch dev-deploy-v2."
+  throw "dev-deploy-v2 の起動に失敗しました。"
 }
 
-Write-Host "[OK] workflow dispatched: dev-deploy-v2.yml (ref=$Ref, image_tag=$ImageTag)" -ForegroundColor Green
+Write-Host "[OK] workflow を起動しました: dev-deploy-v2.yml (ref=$Ref, image_tag=$ImageTag)" -ForegroundColor Green
 
 $global:LASTEXITCODE = 0
 $runJson = & gh run list `
@@ -100,11 +100,11 @@ if ($LASTEXITCODE -eq 0 -and $runJson) {
   $runs = $runJson | ConvertFrom-Json
   if ($runs.Count -gt 0) {
     $run = $runs[0]
-    Write-Host "Latest run: #$($run.databaseId) $($run.status) $($run.url)"
+    Write-Host "最新Run: #$($run.databaseId) $($run.status) $($run.url)"
   }
 }
 
 if ($Watch) {
-  Write-Host "== Watching latest dev-deploy-v2 run ==" -ForegroundColor Cyan
+  Write-Host "== 最新 dev-deploy-v2 Run を監視 ==" -ForegroundColor Cyan
   & gh run watch --repo $Repository
 }

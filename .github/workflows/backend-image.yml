@@ -4,31 +4,31 @@ on:
   workflow_dispatch:
     inputs:
       aws_region:
-        description: "AWS region"
+        description: "AWSリージョン"
         required: true
         default: "ap-northeast-1"
         type: string
       aws_role_to_assume:
-        description: "IAM role ARN for GitHub OIDC"
+        description: "GitHub OIDC 用 IAMロールARN"
         required: true
         type: string
       ecr_repository:
-        description: "ECR repository name (without registry)"
+        description: "ECRリポジトリ名（レジストリ部分なし）"
         required: true
         default: "enm/backend"
         type: string
       image_tag:
-        description: "Image tag"
+        description: "イメージタグ"
         required: true
         default: "manual"
         type: string
       push_latest:
-        description: "Also push :latest"
+        description: ":latest も同時に push する"
         required: true
         default: false
         type: boolean
       trigger_dev_deploy:
-        description: "Trigger dev-deploy workflow after image push"
+        description: "image push 後に dev-deploy を自動起動する"
         required: true
         default: false
         type: boolean
@@ -43,31 +43,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: チェックアウト
         uses: actions/checkout@v4
 
-      - name: Validate image tag format
+      - name: イメージタグ形式チェック
         shell: bash
         run: |
           set -euo pipefail
           IMAGE_TAG="${{ inputs.image_tag }}"
           if [[ ! "$IMAGE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]]; then
-            echo "[ERROR] invalid image_tag format: $IMAGE_TAG"
-            echo "Allowed: alnum/underscore start, then alnum/._- up to 128 chars."
+            echo "[エラー] image_tag の形式が不正です: $IMAGE_TAG"
+            echo "許可形式: 先頭は英数字/アンダースコア、その後は英数字/._-（最大128文字）"
             exit 1
           fi
 
-      - name: Configure AWS credentials
+      - name: AWS認証情報の設定
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ inputs.aws_role_to_assume }}
           aws-region: ${{ inputs.aws_region }}
 
-      - name: Login to Amazon ECR
+      - name: Amazon ECR ログイン
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Prepare image tags
+      - name: イメージタグ準備
         id: prep
         shell: bash
         run: |
@@ -80,7 +80,7 @@ jobs:
           echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
           echo "image=$BASE:${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push image
+      - name: イメージ build & push
         uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -88,11 +88,11 @@ jobs:
           push: true
           tags: ${{ steps.prep.outputs.tags }}
 
-      - name: Summary
+      - name: サマリー
         run: |
-          echo "Pushed image: ${{ steps.prep.outputs.image }}"
+          echo "Pushしたイメージ: ${{ steps.prep.outputs.image }}"
 
-      - name: Trigger dev-deploy workflow
+      - name: dev-deploy 自動起動
         if: ${{ inputs.trigger_dev_deploy }}
         uses: actions/github-script@v7
         env:
@@ -109,7 +109,7 @@ jobs:
             const branchRef = context.ref;
             const branchName = branchRef.replace("refs/heads/", "");
             if (branchName !== "dev") {
-              core.notice(`Skip dev-deploy trigger because branch is '${branchName}' (required: dev).`);
+              core.notice(`dev-deploy 自動起動をスキップしました。実行ブランチ: '${branchName}'（必要: dev）`);
               return;
             }
 
@@ -125,7 +125,7 @@ jobs:
 
             if (missing.length > 0) {
               core.setFailed(
-                `Missing repository variables for dev deploy trigger: ${missing.join(", ")}`
+                `dev deploy 自動起動に必要な Repository Variable が不足しています: ${missing.join(", ")}`
               );
               return;
             }
@@ -147,4 +147,4 @@ jobs:
               inputs,
             });
 
-            core.notice(`Triggered dev-deploy workflow on ref=${ref} with image_tag=${process.env.IMAGE_TAG}`);
+            core.notice(`dev-deploy-v2 を起動しました: ref=${ref}, image_tag=${process.env.IMAGE_TAG}`);

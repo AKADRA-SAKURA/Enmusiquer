@@ -4,27 +4,27 @@ on:
   workflow_dispatch:
     inputs:
       aws_region:
-        description: "AWS region"
+        description: "AWSリージョン"
         required: false
         default: "ap-northeast-1"
       image_tag:
-        description: "Backend image tag"
+        description: "バックエンドのイメージタグ"
         required: false
         default: "manual"
       api_domain:
-        description: "API domain (optional override)"
+        description: "APIドメイン（任意上書き）"
         required: false
         default: ""
       ecr_backend_repo:
-        description: "ECR backend repo (optional override)"
+        description: "ECRバックエンドリポジトリ（任意上書き）"
         required: false
         default: ""
       ecs_cluster_name:
-        description: "ECS cluster name (optional override)"
+        description: "ECSクラスター名（任意上書き）"
         required: false
         default: ""
       ecs_service_name:
-        description: "ECS service name (optional override)"
+        description: "ECSサービス名（任意上書き）"
         required: false
         default: ""
 
@@ -41,14 +41,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Guard branch
+      - name: ブランチガード
         if: ${{ github.ref_name != 'dev' }}
         run: |
-          echo "[ERROR] run this workflow on dev branch."
-          echo "current ref: ${{ github.ref_name }}"
+          echo "[エラー] この workflow は dev ブランチで実行してください。"
+          echo "現在のブランチ: ${{ github.ref_name }}"
           exit 1
 
-      - name: Resolve config
+      - name: 設定値の解決
         id: cfg
         shell: bash
         run: |
@@ -125,18 +125,18 @@ jobs:
             key="${kv%%:*}"
             val="${kv#*:}"
             if [ -z "$val" ]; then
-              echo "[ERROR] missing required value: $key"
+              echo "[エラー] 必須値が未設定です: $key"
               exit 1
             fi
           done
 
           if [[ ! "$ROLE_ARN" =~ ^arn:aws:iam::[0-9]{12}:role/.+ ]]; then
-            echo "[ERROR] invalid AWS role ARN format: $ROLE_ARN"
+            echo "[エラー] AWSロールARNの形式が不正です: $ROLE_ARN"
             exit 1
           fi
           if [[ ! "$IMAGE_TAG_INPUT" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]]; then
-            echo "[ERROR] invalid image_tag format: $IMAGE_TAG_INPUT"
-            echo "Allowed: alnum/underscore start, then alnum/._- up to 128 chars."
+            echo "[エラー] image_tag の形式が不正です: $IMAGE_TAG_INPUT"
+            echo "許可形式: 先頭は英数字/アンダースコア、その後は英数字/._-（最大128文字）"
             exit 1
           fi
 
@@ -150,21 +150,21 @@ jobs:
           echo "ecs_service_name=$ECS_SERVICE_NAME" >> "$GITHUB_OUTPUT"
           echo "ecr_backend_repo=$ECR_BACKEND_REPO" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout
+      - name: チェックアウト
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
+      - name: Terraform セットアップ
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      - name: Configure AWS credentials
+      - name: AWS認証情報の設定
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ steps.cfg.outputs.aws_role_to_assume }}
           aws-region: ${{ steps.cfg.outputs.aws_region }}
 
-      - name: Terraform init (dev)
+      - name: Terraform init（dev）
         run: |
           terraform -chdir=infra/terraform/envs/dev init -reconfigure \
             -backend-config="bucket=${{ steps.cfg.outputs.tf_state_bucket }}" \
@@ -173,7 +173,7 @@ jobs:
             -backend-config="encrypt=true" \
             -input=false
 
-      - name: Validate ECR image tag exists
+      - name: ECRイメージタグ存在確認
         shell: bash
         run: |
           set -euo pipefail
@@ -184,7 +184,7 @@ jobs:
             --query 'imageDetails[0].imageDigest' \
             --output text >/dev/null
 
-      - name: Terraform plan (dev)
+      - name: Terraform plan（dev）
         run: |
           terraform -chdir=infra/terraform/envs/dev plan \
             -input=false \
@@ -197,17 +197,17 @@ jobs:
             -var "create_dns_records=true" \
             -var "api_image_tag=${{ steps.cfg.outputs.image_tag }}"
 
-      - name: Terraform apply (dev)
+      - name: Terraform apply（dev）
         run: terraform -chdir=infra/terraform/envs/dev apply -input=false -auto-approve tfplan
 
-      - name: Wait for ECS service stable
+      - name: ECSサービス安定化待ち
         run: |
           aws ecs wait services-stable \
             --cluster "${{ steps.cfg.outputs.ecs_cluster_name }}" \
             --services "${{ steps.cfg.outputs.ecs_service_name }}" \
             --region "${{ steps.cfg.outputs.aws_region }}"
 
-      - name: Health check (ALB and API domain)
+      - name: ヘルスチェック（ALB / APIドメイン）
         shell: bash
         env:
           API_DOMAIN: ${{ steps.cfg.outputs.api_domain }}
@@ -216,7 +216,7 @@ jobs:
 
           ALB_DNS="$(terraform -chdir=infra/terraform/envs/dev output -raw alb_dns_name)"
           if [ -z "$ALB_DNS" ]; then
-            echo "[ERROR] alb_dns_name is empty."
+            echo "[エラー] alb_dns_name が空です。"
             exit 1
           fi
 
@@ -227,25 +227,25 @@ jobs:
             local sleep_sec=15
 
             for ((i=1; i<=attempts; i++)); do
-              echo "[$name] attempt $i/$attempts: $url"
+              echo "[$name] 試行 $i/$attempts: $url"
               if body="$(curl -fsS --max-time 20 "$url")"; then
                 echo "$body"
                 if [[ "$body" == *'"status":"ok"'* ]]; then
-                  echo "[OK] $name"
+                  echo "[OK] $name 正常"
                   return 0
                 fi
               fi
               sleep "$sleep_sec"
             done
 
-            echo "[ERROR] $name health check failed: $url"
+            echo "[エラー] $name ヘルスチェック失敗: $url"
             return 1
           }
 
           check_with_retry "ALB" "http://${ALB_DNS}/health"
-          check_with_retry "API-Domain" "http://${API_DOMAIN}/health"
+          check_with_retry "APIドメイン" "http://${API_DOMAIN}/health"
 
-      - name: Show ECS recent events on failure
+      - name: 失敗時にECS直近イベント表示
         if: failure()
         run: |
           aws ecs describe-services \
@@ -255,16 +255,16 @@ jobs:
             --query "services[0].events[0:15].[createdAt,message]" \
             --output table || true
 
-      - name: Summary
+      - name: サマリー
         if: always()
         run: |
           echo "image_tag: ${{ steps.cfg.outputs.image_tag }}"
-          echo "aws_region: ${{ steps.cfg.outputs.aws_region }}"
-          echo "api_domain: ${{ steps.cfg.outputs.api_domain }}"
-          echo "ecs_cluster_name: ${{ steps.cfg.outputs.ecs_cluster_name }}"
-          echo "ecs_service_name: ${{ steps.cfg.outputs.ecs_service_name }}"
+          echo "AWSリージョン: ${{ steps.cfg.outputs.aws_region }}"
+          echo "APIドメイン: ${{ steps.cfg.outputs.api_domain }}"
+          echo "ECSクラスター名: ${{ steps.cfg.outputs.ecs_cluster_name }}"
+          echo "ECSサービス名: ${{ steps.cfg.outputs.ecs_service_name }}"
 
-      - name: Notify Discord (success)
+      - name: Discord通知（成功）
         if: success()
         shell: bash
         env:
@@ -273,11 +273,11 @@ jobs:
           set -euo pipefail
           WEBHOOK="$(echo "${DISCORD_WEBHOOK:-}" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
           if [ -z "$WEBHOOK" ]; then
-            echo "[INFO] DEV_DEPLOY_DISCORD_WEBHOOK is empty; skip notify."
+            echo "[情報] DEV_DEPLOY_DISCORD_WEBHOOK が未設定のため通知をスキップします。"
             exit 0
           fi
           if [[ ! "$WEBHOOK" =~ ^https://discord\.com/api/webhooks/[0-9]+/.+ ]]; then
-            echo "[WARN] DEV_DEPLOY_DISCORD_WEBHOOK format looks invalid; skip notify."
+            echo "[警告] DEV_DEPLOY_DISCORD_WEBHOOK の形式が不正のため通知をスキップします。"
             exit 0
           fi
 
@@ -290,10 +290,10 @@ jobs:
 
           if ! jq -n --arg content "$MSG" '{content: $content}' | \
             curl -fsS -X POST -H "Content-Type: application/json" --data @- "$WEBHOOK"; then
-            echo "[WARN] Discord notify failed; continue."
+            echo "[警告] Discord通知に失敗しましたが処理は継続します。"
           fi
 
-      - name: Notify Discord (failure)
+      - name: Discord通知（失敗）
         if: failure()
         shell: bash
         env:
@@ -302,11 +302,11 @@ jobs:
           set -euo pipefail
           WEBHOOK="$(echo "${DISCORD_WEBHOOK:-}" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
           if [ -z "$WEBHOOK" ]; then
-            echo "[INFO] DEV_DEPLOY_DISCORD_WEBHOOK is empty; skip notify."
+            echo "[情報] DEV_DEPLOY_DISCORD_WEBHOOK が未設定のため通知をスキップします。"
             exit 0
           fi
           if [[ ! "$WEBHOOK" =~ ^https://discord\.com/api/webhooks/[0-9]+/.+ ]]; then
-            echo "[WARN] DEV_DEPLOY_DISCORD_WEBHOOK format looks invalid; skip notify."
+            echo "[警告] DEV_DEPLOY_DISCORD_WEBHOOK の形式が不正のため通知をスキップします。"
             exit 0
           fi
 
@@ -319,5 +319,5 @@ jobs:
 
           if ! jq -n --arg content "$MSG" '{content: $content}' | \
             curl -fsS -X POST -H "Content-Type: application/json" --data @- "$WEBHOOK"; then
-            echo "[WARN] Discord notify failed; continue."
+            echo "[警告] Discord通知に失敗しましたが処理は継続します。"
           fi
