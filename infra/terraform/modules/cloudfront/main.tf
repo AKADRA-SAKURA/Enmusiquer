@@ -50,7 +50,7 @@ variable "default_root_object" {
 
 check "aliases_require_acm_certificate" {
   assert {
-    condition     = length(var.aliases) == 0 || (var.acm_certificate_arn != null && trimspace(var.acm_certificate_arn) != "")
+    condition     = length(var.aliases) == 0 || trimspace(coalesce(var.acm_certificate_arn, "")) != ""
     error_message = "acm_certificate_arn is required when aliases is not empty."
   }
 }

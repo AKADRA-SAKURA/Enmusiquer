@@ -42,7 +42,7 @@ locals {
 
 check "discord_webhook_when_enabled" {
   assert {
-    condition     = !var.enabled || (var.discord_webhook_url != null && trimspace(var.discord_webhook_url) != "")
+    condition     = !var.enabled || trimspace(coalesce(var.discord_webhook_url, "")) != ""
     error_message = "discord_webhook_url is required when enabled is true."
   }
 }

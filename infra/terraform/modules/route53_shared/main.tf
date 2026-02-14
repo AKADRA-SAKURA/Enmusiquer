@@ -17,7 +17,7 @@ variable "existing_hosted_zone_id" {
 
 check "existing_hosted_zone_id_required_when_reusing_zone" {
   assert {
-    condition     = var.create_hosted_zone || (var.existing_hosted_zone_id != null && trimspace(var.existing_hosted_zone_id) != "")
+    condition     = var.create_hosted_zone || trimspace(coalesce(var.existing_hosted_zone_id, "")) != ""
     error_message = "existing_hosted_zone_id is required when create_hosted_zone is false."
   }
 }
