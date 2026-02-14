@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("setup", "doctor", "secret-check", "plan-all", "apply-safe", "run", "api-health")]
+  [ValidateSet("setup", "doctor", "secret-check", "plan-all", "apply-safe", "run", "api-health", "gh-dev-deploy")]
   [string]$Task,
 
   [ValidateSet("shared", "dev", "prod")]
@@ -16,6 +16,8 @@ param(
   [string]$ProdApproveToken,
   [string]$Region = "",
   [string]$Repository = "AKADRA-SAKURA/Enmusiquer",
+  [string]$ImageTag = "manual",
+  [string]$GhRef = "dev",
 
   [switch]$Reconfigure,
   [switch]$ReconfigureInit,
@@ -26,6 +28,7 @@ param(
   [switch]$SkipAwsSts,
   [switch]$CheckGitHubActions,
   [switch]$RunSecretGuard,
+  [switch]$WatchRun,
   [switch]$Force,
   [switch]$SkipHooks,
   [switch]$ShowEcsEvents
@@ -51,6 +54,7 @@ $paths = @{
   applySafe   = Join-Path $scriptDir "tf-apply-safe.ps1"
   run         = Join-Path $scriptDir "tf.ps1"
   apiHealth   = Join-Path $scriptDir "api-health.ps1"
+  ghDevDeploy = Join-Path $scriptDir "gh-dev-deploy.ps1"
 }
 
 switch ($Task) {
@@ -138,6 +142,18 @@ switch ($Task) {
     if ($Region) { $args.Region = $Region }
     if ($ShowEcsEvents) { $args.ShowEcsEvents = $true }
     & $paths.apiHealth @args
+  }
+
+  "gh-dev-deploy" {
+    Ensure-ScriptExists $paths.ghDevDeploy
+    $args = @{
+      Repository = $Repository
+      Ref        = $GhRef
+      ImageTag   = $ImageTag
+    }
+    if ($Region) { $args.AwsRegion = $Region }
+    if ($WatchRun) { $args.Watch = $true }
+    & $paths.ghDevDeploy @args
   }
 }
 
