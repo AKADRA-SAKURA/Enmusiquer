@@ -1,6 +1,8 @@
 param(
   [switch]$SkipAwsSts,
-  [switch]$RunSecretGuard
+  [switch]$RunSecretGuard,
+  [switch]$CheckGitHubActions,
+  [string]$Repository = "AKADRA-SAKURA/Enmusiquer"
 )
 
 Set-StrictMode -Version Latest
@@ -25,6 +27,52 @@ function Add-Ok([string]$message) {
 
 function Command-Exists([string]$name) {
   return [bool](Get-Command $name -ErrorAction SilentlyContinue)
+}
+
+function Get-GhApiList {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+    [Parameter(Mandatory = $true)]
+    [string]$Jq
+  )
+
+  $global:LASTEXITCODE = 0
+  $raw = & gh api --paginate $Path --jq $Jq 2>$null
+  if ($LASTEXITCODE -ne 0 -or $null -eq $raw) {
+    return @()
+  }
+
+  $lines = ($raw | Out-String).Trim() -split "(`r`n|`n|`r)"
+  return @($lines | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
+}
+
+function Get-GhVariableValue {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Repo,
+    [Parameter(Mandatory = $true)]
+    [string]$Name
+  )
+
+  $global:LASTEXITCODE = 0
+  $value = & gh variable get $Name --repo $Repo 2>$null
+  if ($LASTEXITCODE -ne 0 -or $null -eq $value) {
+    return ""
+  }
+
+  return ($value | Out-String).Trim()
+}
+
+function New-CaseInsensitiveSet {
+  param([string[]]$Items)
+  $set = New-Object "System.Collections.Generic.HashSet[string]" ([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($item in $Items) {
+    if (-not [string]::IsNullOrWhiteSpace($item)) {
+      $null = $set.Add($item)
+    }
+  }
+  return $set
 }
 
 function Test-EnvFiles([string]$repoRoot, [string]$env) {
@@ -117,6 +165,90 @@ else {
 Test-EnvFiles -repoRoot $repoRoot -env "shared"
 Test-EnvFiles -repoRoot $repoRoot -env "dev"
 Test-EnvFiles -repoRoot $repoRoot -env "prod"
+
+if ($CheckGitHubActions) {
+  Write-Host "== GitHub Actions config check ==" -ForegroundColor Cyan
+  if (-not (Command-Exists "gh")) {
+    Add-Error "gh command not found in PATH. Install GitHub CLI to run -CheckGitHubActions."
+  }
+  else {
+    $global:LASTEXITCODE = 0
+    & gh auth status 1>$null 2>$null
+    if ($LASTEXITCODE -ne 0) {
+      Add-Error "gh auth status failed. Run 'gh auth login' first."
+    }
+    else {
+      Add-Ok "gh authentication OK"
+
+      $variableNames = Get-GhApiList -Path "repos/$Repository/actions/variables" -Jq ".variables[].name"
+      $secretNames = Get-GhApiList -Path "repos/$Repository/actions/secrets" -Jq ".secrets[].name"
+
+      $varSet = New-CaseInsensitiveSet -Items $variableNames
+      $secretSet = New-CaseInsensitiveSet -Items $secretNames
+
+      $requiredVars = @(
+        "AWS_ROLE_TO_ASSUME_DEV_DEPLOY",
+        "TF_STATE_BUCKET",
+        "ROOT_DOMAIN"
+      )
+
+      $recommendedVars = @(
+        "AWS_REGION",
+        "AWS_ROLE_TO_ASSUME_DEV_HEALTH",
+        "DEV_API_DOMAIN",
+        "DEV_ALB_NAME",
+        "DEV_ECR_BACKEND_REPO",
+        "DEV_ECS_CLUSTER_NAME",
+        "DEV_ECS_SERVICE_NAME"
+      )
+
+      foreach ($name in $requiredVars) {
+        if ($varSet.Contains($name)) {
+          Add-Ok "GitHub variable exists: $name"
+        }
+        else {
+          Add-Error "Missing required GitHub variable: $name"
+        }
+      }
+
+      foreach ($name in $recommendedVars) {
+        if ($varSet.Contains($name)) {
+          Add-Ok "GitHub variable exists: $name"
+        }
+        else {
+          Add-Warn "Missing recommended GitHub variable: $name"
+        }
+      }
+
+      if ($secretSet.Contains("DEV_DEPLOY_DISCORD_WEBHOOK")) {
+        Add-Ok "GitHub secret exists: DEV_DEPLOY_DISCORD_WEBHOOK"
+      }
+      else {
+        Add-Warn "Missing optional GitHub secret: DEV_DEPLOY_DISCORD_WEBHOOK"
+      }
+
+      $deployRoleArn = Get-GhVariableValue -Repo $Repository -Name "AWS_ROLE_TO_ASSUME_DEV_DEPLOY"
+      if (-not [string]::IsNullOrWhiteSpace($deployRoleArn)) {
+        if ($deployRoleArn -match "^arn:aws:iam::[0-9]{12}:role/.+") {
+          Add-Ok "AWS_ROLE_TO_ASSUME_DEV_DEPLOY format looks valid"
+        }
+        else {
+          Add-Error "AWS_ROLE_TO_ASSUME_DEV_DEPLOY format looks invalid: $deployRoleArn"
+        }
+      }
+
+      $healthRoleArn = Get-GhVariableValue -Repo $Repository -Name "AWS_ROLE_TO_ASSUME_DEV_HEALTH"
+      if (-not [string]::IsNullOrWhiteSpace($healthRoleArn)) {
+        if ($healthRoleArn -match "^arn:aws:iam::[0-9]{12}:role/.+") {
+          Add-Ok "AWS_ROLE_TO_ASSUME_DEV_HEALTH format looks valid"
+        }
+        else {
+          Add-Error "AWS_ROLE_TO_ASSUME_DEV_HEALTH format looks invalid: $healthRoleArn"
+        }
+      }
+    }
+  }
+}
 
 if ($RunSecretGuard) {
   $guardScript = Join-Path $repoRoot "scripts/check_terraform_secrets.ps1"

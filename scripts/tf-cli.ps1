@@ -15,6 +15,7 @@ param(
   [string]$VarFile = "terraform.tfvars",
   [string]$ProdApproveToken,
   [string]$Region = "",
+  [string]$Repository = "AKADRA-SAKURA/Enmusiquer",
 
   [switch]$Reconfigure,
   [switch]$ReconfigureInit,
@@ -23,6 +24,7 @@ param(
   [switch]$SkipPlan,
   [switch]$SkipSecretCheck,
   [switch]$SkipAwsSts,
+  [switch]$CheckGitHubActions,
   [switch]$RunSecretGuard,
   [switch]$Force,
   [switch]$SkipHooks,
@@ -65,6 +67,10 @@ switch ($Task) {
     Ensure-ScriptExists $paths.doctor
     $args = @{}
     if ($SkipAwsSts) { $args.SkipAwsSts = $true }
+    if ($CheckGitHubActions) {
+      $args.CheckGitHubActions = $true
+      $args.Repository = $Repository
+    }
     if ($RunSecretGuard) { $args.RunSecretGuard = $true }
     & $paths.doctor @args
   }
