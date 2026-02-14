@@ -4,6 +4,7 @@ param(
   [string]$RootDomain = "enmusiquer.com",
   [string]$TfStateBucket = "",
   [string]$DevApiDomain = "api-dev.enmusiquer.com",
+  [string]$DevEcrBackendRepo = "enm/backend",
   [string]$DevAlbName = "enm-dev-alb",
   [string]$DevEcsClusterName = "enm-dev-cluster",
   [string]$DevEcsServiceName = "enm-dev-api",
@@ -69,6 +70,7 @@ Set-RepoVariable -Name "ROOT_DOMAIN" -Value $RootDomain
 Set-RepoVariable -Name "TF_STATE_BUCKET" -Value $TfStateBucket
 
 Set-RepoVariable -Name "DEV_API_DOMAIN" -Value $DevApiDomain
+Set-RepoVariable -Name "DEV_ECR_BACKEND_REPO" -Value $DevEcrBackendRepo
 Set-RepoVariable -Name "DEV_ALB_NAME" -Value $DevAlbName
 Set-RepoVariable -Name "DEV_ECS_CLUSTER_NAME" -Value $DevEcsClusterName
 Set-RepoVariable -Name "DEV_ECS_SERVICE_NAME" -Value $DevEcsServiceName

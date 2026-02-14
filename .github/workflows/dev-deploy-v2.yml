@@ -61,6 +61,7 @@ jobs:
           API_DOMAIN_RAW="$(trim_value "${{ vars.DEV_API_DOMAIN }}")"
           ECS_CLUSTER_NAME="$(trim_value "${{ vars.DEV_ECS_CLUSTER_NAME }}")"
           ECS_SERVICE_NAME="$(trim_value "${{ vars.DEV_ECS_SERVICE_NAME }}")"
+          ECR_BACKEND_REPO="$(trim_value "${{ vars.DEV_ECR_BACKEND_REPO }}")"
 
           ROOT_DOMAIN="$(normalize_host "$ROOT_DOMAIN_RAW")"
           API_DOMAIN="$(normalize_host "$API_DOMAIN_RAW")"
@@ -73,6 +74,9 @@ jobs:
           fi
           if [ -z "$ECS_SERVICE_NAME" ]; then
             ECS_SERVICE_NAME="enm-dev-api"
+          fi
+          if [ -z "$ECR_BACKEND_REPO" ]; then
+            ECR_BACKEND_REPO="enm/backend"
           fi
 
           for kv in \
@@ -103,6 +107,7 @@ jobs:
           echo "api_domain=$API_DOMAIN" >> "$GITHUB_OUTPUT"
           echo "ecs_cluster_name=$ECS_CLUSTER_NAME" >> "$GITHUB_OUTPUT"
           echo "ecs_service_name=$ECS_SERVICE_NAME" >> "$GITHUB_OUTPUT"
+          echo "ecr_backend_repo=$ECR_BACKEND_REPO" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -126,6 +131,17 @@ jobs:
             -backend-config="region=${{ steps.cfg.outputs.aws_region }}" \
             -backend-config="encrypt=true" \
             -input=false
+
+      - name: Validate ECR image tag exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecr describe-images \
+            --repository-name "${{ steps.cfg.outputs.ecr_backend_repo }}" \
+            --image-ids "imageTag=${{ steps.cfg.outputs.image_tag }}" \
+            --region "${{ steps.cfg.outputs.aws_region }}" \
+            --query 'imageDetails[0].imageDigest' \
+            --output text >/dev/null
 
       - name: Terraform plan (dev)
         run: |
