@@ -23,6 +23,7 @@ terraform.tfvars
 *.auto.tfvars
 infra/terraform/envs/*/backend.hcl
 trust-policy.json
+trust-policy-gha.json
 ecr-push-policy.json
 
 # OS
