@@ -98,6 +98,11 @@ jobs:
             echo "[ERROR] invalid AWS role ARN format: $ROLE_ARN"
             exit 1
           fi
+          if [[ ! "$IMAGE_TAG_INPUT" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]]; then
+            echo "[ERROR] invalid image_tag format: $IMAGE_TAG_INPUT"
+            echo "Allowed: alnum/underscore start, then alnum/._- up to 128 chars."
+            exit 1
+          fi
 
           echo "aws_region=$AWS_REGION_INPUT" >> "$GITHUB_OUTPUT"
           echo "image_tag=$IMAGE_TAG_INPUT" >> "$GITHUB_OUTPUT"

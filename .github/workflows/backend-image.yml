@@ -46,6 +46,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate image tag format
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE_TAG="${{ inputs.image_tag }}"
+          if [[ ! "$IMAGE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$ ]]; then
+            echo "[ERROR] invalid image_tag format: $IMAGE_TAG"
+            echo "Allowed: alnum/underscore start, then alnum/._- up to 128 chars."
+            exit 1
+          fi
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
