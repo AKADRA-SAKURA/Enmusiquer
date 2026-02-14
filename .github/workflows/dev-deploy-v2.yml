@@ -282,11 +282,11 @@ jobs:
           fi
 
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          MSG="[SUCCESS] dev-deploy-v2 success
-          repository: ${{ github.repository }}
-          branch: ${{ github.ref_name }}
+          MSG="[成功] dev-deploy-v2 が完了しました
+          リポジトリ: ${{ github.repository }}
+          ブランチ: ${{ github.ref_name }}
           image_tag: ${{ steps.cfg.outputs.image_tag }}
-          run: ${RUN_URL}"
+          実行URL: ${RUN_URL}"
 
           if ! jq -n --arg content "$MSG" '{content: $content}' | \
             curl -fsS -X POST -H "Content-Type: application/json" --data @- "$WEBHOOK"; then
@@ -311,11 +311,11 @@ jobs:
           fi
 
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          MSG="[FAILED] dev-deploy-v2 failed
-          repository: ${{ github.repository }}
-          branch: ${{ github.ref_name }}
+          MSG="[失敗] dev-deploy-v2 が失敗しました
+          リポジトリ: ${{ github.repository }}
+          ブランチ: ${{ github.ref_name }}
           image_tag: ${{ steps.cfg.outputs.image_tag }}
-          run: ${RUN_URL}"
+          実行URL: ${RUN_URL}"
 
           if ! jq -n --arg content "$MSG" '{content: $content}' | \
             curl -fsS -X POST -H "Content-Type: application/json" --data @- "$WEBHOOK"; then
