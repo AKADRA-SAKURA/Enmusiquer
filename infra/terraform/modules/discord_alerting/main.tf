@@ -28,11 +28,6 @@ variable "discord_webhook_url" {
   description = "Discord incoming webhook URL."
   default     = null
   sensitive   = true
-
-  validation {
-    condition     = !var.enabled || (var.discord_webhook_url != null && trimspace(var.discord_webhook_url) != "")
-    error_message = "discord_webhook_url is required when enabled is true."
-  }
 }
 
 variable "topic_name" {
@@ -43,6 +38,13 @@ variable "topic_name" {
 
 locals {
   sns_topic_name = var.topic_name != null ? var.topic_name : "${var.name_prefix}-alerts"
+}
+
+check "discord_webhook_when_enabled" {
+  assert {
+    condition     = !var.enabled || (var.discord_webhook_url != null && trimspace(var.discord_webhook_url) != "")
+    error_message = "discord_webhook_url is required when enabled is true."
+  }
 }
 
 resource "aws_sns_topic" "this" {

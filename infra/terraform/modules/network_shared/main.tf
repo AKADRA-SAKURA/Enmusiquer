@@ -21,18 +21,22 @@ variable "azs" {
 variable "public_subnet_cidrs" {
   type        = list(string)
   description = "CIDR blocks for public subnets."
-
-  validation {
-    condition     = length(var.public_subnet_cidrs) == length(var.azs)
-    error_message = "public_subnet_cidrs length must match azs length."
-  }
 }
 
 variable "private_subnet_cidrs" {
   type        = list(string)
   description = "CIDR blocks for private subnets."
+}
 
-  validation {
+check "public_subnet_cidrs_match_azs" {
+  assert {
+    condition     = length(var.public_subnet_cidrs) == length(var.azs)
+    error_message = "public_subnet_cidrs length must match azs length."
+  }
+}
+
+check "private_subnet_cidrs_match_azs" {
+  assert {
     condition     = length(var.private_subnet_cidrs) == length(var.azs)
     error_message = "private_subnet_cidrs length must match azs length."
   }
