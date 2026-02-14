@@ -11,6 +11,22 @@ on:
         description: "Backend image tag"
         required: false
         default: "manual"
+      api_domain:
+        description: "API domain (optional override)"
+        required: false
+        default: ""
+      ecr_backend_repo:
+        description: "ECR backend repo (optional override)"
+        required: false
+        default: ""
+      ecs_cluster_name:
+        description: "ECS cluster name (optional override)"
+        required: false
+        default: ""
+      ecs_service_name:
+        description: "ECS service name (optional override)"
+        required: false
+        default: ""
 
 permissions:
   id-token: write
@@ -58,13 +74,33 @@ jobs:
           ROLE_ARN="$(trim_value "${{ vars.AWS_ROLE_TO_ASSUME_DEV_DEPLOY }}")"
           STATE_BUCKET="$(trim_value "${{ vars.TF_STATE_BUCKET }}")"
           ROOT_DOMAIN_RAW="$(trim_value "${{ vars.ROOT_DOMAIN }}")"
-          API_DOMAIN_RAW="$(trim_value "${{ vars.DEV_API_DOMAIN }}")"
-          ECS_CLUSTER_NAME="$(trim_value "${{ vars.DEV_ECS_CLUSTER_NAME }}")"
-          ECS_SERVICE_NAME="$(trim_value "${{ vars.DEV_ECS_SERVICE_NAME }}")"
-          ECR_BACKEND_REPO="$(trim_value "${{ vars.DEV_ECR_BACKEND_REPO }}")"
+          API_DOMAIN_INPUT_RAW="$(trim_value "${{ github.event.inputs.api_domain }}")"
+          API_DOMAIN_VAR_RAW="$(trim_value "${{ vars.DEV_API_DOMAIN }}")"
+          ECS_CLUSTER_INPUT="$(trim_value "${{ github.event.inputs.ecs_cluster_name }}")"
+          ECS_CLUSTER_VAR="$(trim_value "${{ vars.DEV_ECS_CLUSTER_NAME }}")"
+          ECS_SERVICE_INPUT="$(trim_value "${{ github.event.inputs.ecs_service_name }}")"
+          ECS_SERVICE_VAR="$(trim_value "${{ vars.DEV_ECS_SERVICE_NAME }}")"
+          ECR_BACKEND_REPO_INPUT="$(trim_value "${{ github.event.inputs.ecr_backend_repo }}")"
+          ECR_BACKEND_REPO_VAR="$(trim_value "${{ vars.DEV_ECR_BACKEND_REPO }}")"
 
           ROOT_DOMAIN="$(normalize_host "$ROOT_DOMAIN_RAW")"
+          API_DOMAIN_RAW="$API_DOMAIN_INPUT_RAW"
+          if [ -z "$API_DOMAIN_RAW" ]; then
+            API_DOMAIN_RAW="$API_DOMAIN_VAR_RAW"
+          fi
           API_DOMAIN="$(normalize_host "$API_DOMAIN_RAW")"
+          ECS_CLUSTER_NAME="$ECS_CLUSTER_INPUT"
+          if [ -z "$ECS_CLUSTER_NAME" ]; then
+            ECS_CLUSTER_NAME="$ECS_CLUSTER_VAR"
+          fi
+          ECS_SERVICE_NAME="$ECS_SERVICE_INPUT"
+          if [ -z "$ECS_SERVICE_NAME" ]; then
+            ECS_SERVICE_NAME="$ECS_SERVICE_VAR"
+          fi
+          ECR_BACKEND_REPO="$ECR_BACKEND_REPO_INPUT"
+          if [ -z "$ECR_BACKEND_REPO" ]; then
+            ECR_BACKEND_REPO="$ECR_BACKEND_REPO_VAR"
+          fi
 
           if [ -z "$API_DOMAIN" ] && [ -n "$ROOT_DOMAIN" ]; then
             API_DOMAIN="api-dev.${ROOT_DOMAIN}"

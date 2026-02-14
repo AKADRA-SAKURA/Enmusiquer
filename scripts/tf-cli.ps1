@@ -18,6 +18,10 @@ param(
   [string]$Repository = "AKADRA-SAKURA/Enmusiquer",
   [string]$ImageTag = "manual",
   [string]$GhRef = "dev",
+  [string]$ApiDomain = "",
+  [string]$EcrBackendRepo = "",
+  [string]$EcsClusterName = "",
+  [string]$EcsServiceName = "",
 
   [switch]$Reconfigure,
   [switch]$ReconfigureInit,
@@ -152,6 +156,10 @@ switch ($Task) {
       ImageTag   = $ImageTag
     }
     if ($Region) { $args.AwsRegion = $Region }
+    if ($ApiDomain) { $args.ApiDomain = $ApiDomain }
+    if ($EcrBackendRepo) { $args.EcrBackendRepo = $EcrBackendRepo }
+    if ($EcsClusterName) { $args.EcsClusterName = $EcsClusterName }
+    if ($EcsServiceName) { $args.EcsServiceName = $EcsServiceName }
     if ($WatchRun) { $args.Watch = $true }
     & $paths.ghDevDeploy @args
   }

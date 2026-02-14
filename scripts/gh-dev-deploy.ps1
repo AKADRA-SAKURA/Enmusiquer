@@ -3,6 +3,10 @@ param(
   [string]$Ref = "dev",
   [string]$AwsRegion = "ap-northeast-1",
   [string]$ImageTag = "manual",
+  [string]$ApiDomain = "",
+  [string]$EcrBackendRepo = "",
+  [string]$EcsClusterName = "",
+  [string]$EcsServiceName = "",
   [switch]$Watch
 )
 
@@ -54,11 +58,28 @@ Assert-RequiredVariables -Repo $Repository -Names @(
   "ROOT_DOMAIN"
 )
 
-& gh workflow run dev-deploy-v2.yml `
-  --repo $Repository `
-  --ref $Ref `
-  -f "aws_region=$AwsRegion" `
-  -f "image_tag=$ImageTag"
+$runArgs = @(
+  "workflow", "run", "dev-deploy-v2.yml",
+  "--repo", $Repository,
+  "--ref", $Ref,
+  "-f", "aws_region=$AwsRegion",
+  "-f", "image_tag=$ImageTag"
+)
+
+if (-not [string]::IsNullOrWhiteSpace($ApiDomain)) {
+  $runArgs += @("-f", "api_domain=$ApiDomain")
+}
+if (-not [string]::IsNullOrWhiteSpace($EcrBackendRepo)) {
+  $runArgs += @("-f", "ecr_backend_repo=$EcrBackendRepo")
+}
+if (-not [string]::IsNullOrWhiteSpace($EcsClusterName)) {
+  $runArgs += @("-f", "ecs_cluster_name=$EcsClusterName")
+}
+if (-not [string]::IsNullOrWhiteSpace($EcsServiceName)) {
+  $runArgs += @("-f", "ecs_service_name=$EcsServiceName")
+}
+
+& gh @runArgs
 
 if ($LASTEXITCODE -ne 0) {
   throw "Failed to dispatch dev-deploy-v2."
