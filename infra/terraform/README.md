@@ -376,3 +376,44 @@ powershell -ExecutionPolicy Bypass -File scripts/setup_github_actions_config.ps1
 - `-SetDiscordWebhookSecret` を付けると、`DEV_DEPLOY_DISCORD_WEBHOOK` を対話入力で Secret に保存します。
 - 事前に `gh auth login` が必要です。
 - 反映内容確認だけしたい場合は `-DryRun` を付けてください。
+
+## Update: dev-deploy-v2 (recommended)
+
+`dev-deploy.yml` is deprecated. Use `dev-deploy-v2.yml`.
+
+### Required GitHub Variables
+
+- `AWS_ROLE_TO_ASSUME_DEV_DEPLOY`
+- `TF_STATE_BUCKET`
+- `ROOT_DOMAIN`
+
+### Optional GitHub Variables
+
+- `DEV_API_DOMAIN` (default: `api-dev.<ROOT_DOMAIN>`)
+- `DEV_ECR_BACKEND_REPO` (default: `enm/backend`)
+- `DEV_ECS_CLUSTER_NAME` (default: `enm-dev-cluster`)
+- `DEV_ECS_SERVICE_NAME` (default: `enm-dev-api`)
+
+### Optional GitHub Secret
+
+- `DEV_DEPLOY_DISCORD_WEBHOOK`
+
+### Run from CLI (recommended)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\tf-cli.ps1 -Task gh-dev-deploy -ImageTag manual -WatchRun
+```
+
+### Manual workflow dispatch
+
+```powershell
+gh workflow run dev-deploy-v2.yml --ref dev -f aws_region=ap-northeast-1 -f image_tag=manual
+```
+
+### Quick diagnostics
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\tf-cli.ps1 -Task doctor -CheckGitHubActions -Repository "AKADRA-SAKURA/Enmusiquer" -RunSecretGuard
+```
+
+- CI workflow lint: .github/workflows/workflow-lint.yml (actionlint)
