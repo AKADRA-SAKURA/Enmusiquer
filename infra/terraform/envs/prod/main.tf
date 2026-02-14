@@ -42,8 +42,11 @@ data "terraform_remote_state" "shared" {
 locals {
   api_fqdn            = "${var.api_record_name}.${var.root_domain}"
   cdn_fqdn            = "${var.cdn_record_name}.${var.root_domain}"
-  shared_backend_repo = try(data.terraform_remote_state.shared.outputs.repository_urls["backend"], "")
-  api_image           = var.use_shared_ecr_image ? "${local.shared_backend_repo}:${var.api_image_tag}" : var.api_container_image
+  shared_backend_repo_raw = try(data.terraform_remote_state.shared.outputs.repository_urls["backend"], "")
+  shared_backend_repo = try(trimspace(local.shared_backend_repo_raw), "")
+  api_image_tag_clean = try(trimspace(var.api_image_tag), "")
+  api_container_image_clean = try(trimspace(var.api_container_image), "")
+  api_image           = var.use_shared_ecr_image ? format("%s:%s", local.shared_backend_repo, local.api_image_tag_clean) : local.api_container_image_clean
   api_env             = merge(var.api_environment_variables, var.runtime_enabled ? { DB_HOST = module.rds_postgres.db_endpoint } : {})
   api_secrets         = merge(var.api_secret_arns, var.runtime_enabled ? { DB_MASTER_SECRET_ARN = module.rds_postgres.db_secret_arn } : {})
   monitoring_alarm_actions_effective = length(var.monitoring_alarm_actions) > 0 ? var.monitoring_alarm_actions : compact([module.discord_alerting.topic_arn])
@@ -51,8 +54,24 @@ locals {
 
 check "shared_backend_repo_available" {
   assert {
-    condition     = !var.use_shared_ecr_image || local.shared_backend_repo != ""
+    condition     = !var.use_shared_ecr_image || (local.shared_backend_repo != "" && local.api_image_tag_clean != "")
     error_message = "use_shared_ecr_image=true requires shared output repository_urls[\"backend\"]."
+  }
+}
+
+check "api_container_image_available" {
+  assert {
+    condition     = var.use_shared_ecr_image || local.api_container_image_clean != ""
+    error_message = "use_shared_ecr_image=false requires api_container_image."
+  }
+}
+
+check "api_image_format_valid" {
+  assert {
+    condition = local.api_image != "" &&
+      !can(regex("[[:space:]]", local.api_image)) &&
+      can(regex("^[A-Za-z0-9._/:@-]+$", local.api_image))
+    error_message = "ECS container image is invalid. Check api_container_image/api_image_tag for spaces or unsupported characters."
   }
 }
 
