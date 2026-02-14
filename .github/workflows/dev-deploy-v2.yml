@@ -59,12 +59,20 @@ jobs:
           STATE_BUCKET="$(trim_value "${{ vars.TF_STATE_BUCKET }}")"
           ROOT_DOMAIN_RAW="$(trim_value "${{ vars.ROOT_DOMAIN }}")"
           API_DOMAIN_RAW="$(trim_value "${{ vars.DEV_API_DOMAIN }}")"
+          ECS_CLUSTER_NAME="$(trim_value "${{ vars.DEV_ECS_CLUSTER_NAME }}")"
+          ECS_SERVICE_NAME="$(trim_value "${{ vars.DEV_ECS_SERVICE_NAME }}")"
 
           ROOT_DOMAIN="$(normalize_host "$ROOT_DOMAIN_RAW")"
           API_DOMAIN="$(normalize_host "$API_DOMAIN_RAW")"
 
           if [ -z "$API_DOMAIN" ] && [ -n "$ROOT_DOMAIN" ]; then
             API_DOMAIN="api-dev.${ROOT_DOMAIN}"
+          fi
+          if [ -z "$ECS_CLUSTER_NAME" ]; then
+            ECS_CLUSTER_NAME="enm-dev-cluster"
+          fi
+          if [ -z "$ECS_SERVICE_NAME" ]; then
+            ECS_SERVICE_NAME="enm-dev-api"
           fi
 
           for kv in \
@@ -93,6 +101,8 @@ jobs:
           echo "tf_state_bucket=$STATE_BUCKET" >> "$GITHUB_OUTPUT"
           echo "root_domain=$ROOT_DOMAIN" >> "$GITHUB_OUTPUT"
           echo "api_domain=$API_DOMAIN" >> "$GITHUB_OUTPUT"
+          echo "ecs_cluster_name=$ECS_CLUSTER_NAME" >> "$GITHUB_OUTPUT"
+          echo "ecs_service_name=$ECS_SERVICE_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -136,8 +146,8 @@ jobs:
       - name: Wait for ECS service stable
         run: |
           aws ecs wait services-stable \
-            --cluster "enm-dev-cluster" \
-            --services "enm-dev-api" \
+            --cluster "${{ steps.cfg.outputs.ecs_cluster_name }}" \
+            --services "${{ steps.cfg.outputs.ecs_service_name }}" \
             --region "${{ steps.cfg.outputs.aws_region }}"
 
       - name: Health check (ALB and API domain)
@@ -182,8 +192,8 @@ jobs:
         if: failure()
         run: |
           aws ecs describe-services \
-            --cluster "enm-dev-cluster" \
-            --services "enm-dev-api" \
+            --cluster "${{ steps.cfg.outputs.ecs_cluster_name }}" \
+            --services "${{ steps.cfg.outputs.ecs_service_name }}" \
             --region "${{ steps.cfg.outputs.aws_region }}" \
             --query "services[0].events[0:15].[createdAt,message]" \
             --output table || true
@@ -194,6 +204,8 @@ jobs:
           echo "image_tag: ${{ steps.cfg.outputs.image_tag }}"
           echo "aws_region: ${{ steps.cfg.outputs.aws_region }}"
           echo "api_domain: ${{ steps.cfg.outputs.api_domain }}"
+          echo "ecs_cluster_name: ${{ steps.cfg.outputs.ecs_cluster_name }}"
+          echo "ecs_service_name: ${{ steps.cfg.outputs.ecs_service_name }}"
 
       - name: Notify Discord (success)
         if: success()
