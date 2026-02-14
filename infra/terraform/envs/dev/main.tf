@@ -68,9 +68,11 @@ check "api_container_image_available" {
 
 check "api_image_format_valid" {
   assert {
-    condition = local.api_image != "" &&
-      !can(regex("[[:space:]]", local.api_image)) &&
+    condition = (
+      local.api_image != "" &&
+      !can(regex("\\s", local.api_image)) &&
       can(regex("^[A-Za-z0-9._/:@-]+$", local.api_image))
+    )
     error_message = "ECS container image is invalid. Check api_container_image/api_image_tag for spaces or unsupported characters."
   }
 }
