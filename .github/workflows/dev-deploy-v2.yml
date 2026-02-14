@@ -114,7 +114,6 @@ jobs:
             -backend-config="bucket=${{ steps.cfg.outputs.tf_state_bucket }}" \
             -backend-config="key=enm/dev/terraform.tfstate" \
             -backend-config="region=${{ steps.cfg.outputs.aws_region }}" \
-            -backend-config="use_lockfile=true" \
             -backend-config="encrypt=true" \
             -input=false
 
